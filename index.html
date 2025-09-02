@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>水没検査 入力パネル（要件対応β）</title>
+<style>
+  :root{--bg:#0f172a;--card:#111827;--muted:#94a3b8;--ok:#16a34a;--warn:#f59e0b;--err:#ef4444;--ink:#e5e7eb;--accent:#22d3ee}
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Noto Sans JP",sans-serif;background:linear-gradient(160deg,#0b1222,#0f172a 40%,#0c1226);color:var(--ink)}
+  .wrap{max-width:1100px;margin:0 auto;padding:20px}
+  header{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+  header h1{font-size:20px;margin:0 8px 0 0;font-weight:800;letter-spacing:.02em}
+  .card{background:var(--card);border:1px solid #1f2937;border-radius:16px;padding:14px;box-shadow:0 10px 24px rgba(0,0,0,.25)}
+  .section-title{font-weight:800;margin:6px 2px 10px;color:#cbd5e1}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px}
+  @media (max-width:900px){.grid{grid-template-columns:repeat(2,minmax(150px,1fr))}}
+  .btn{border:1px solid #1f2937;background:#0b1222;color:var(--ink);border-radius:12px;padding:12px 16px;font-weight:800;cursor:pointer;letter-spacing:.02em}
+  .btn.big{height:80px;border-radius:14px;background:linear-gradient(180deg,#0f1b33,#0a1326);box-shadow:inset 0 0 0 1px rgba(255,255,255,.04),0 8px 20px rgba(0,0,0,.2)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn.active{background:#12223f;border-color:#30548d;box-shadow:inset 0 0 0 1px rgba(34,211,238,.25),0 0 0 2px rgba(34,211,238,.15)}
+  .btn.ok{background:#052e1a;border-color:#14532d}
+  .btn.err{background:#3b0a0a;border-color:#7f1d1d}
+  .pill{display:inline-flex;align-items:center;gap:8px;background:#0b1222;border:1px solid #233046;color:var(--ink);padding:8px 10px;border-radius:999px}
+  .pill input,.pill select{background:transparent;border:none;color:var(--ink);outline:none}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{border:1px solid #233046;border-radius:999px;padding:10px 14px;background:#0b1222;color:var(--ink);cursor:pointer;font-weight:700}
+  .chip.active{border-color:#2aa6c8;background:#0e1a2c}
+  .muted{color:var(--muted)}
+  .log{margin-top:12px;font-size:13px;color:var(--muted);max-height:160px;overflow:auto;white-space:pre-wrap}
+  .toast{position:fixed;inset:auto 16px 16px auto;background:rgba(2,6,23,.9);border:1px solid #1f2937;color:var(--ink);padding:12px 14px;border-radius:12px;box-shadow:0 10px 22px rgba(0,0,0,.35);opacity:0;transform:translateY(8px);transition:.2s}
+  .toast.show{opacity:1;transform:translateY(0)}
+  input[type="text"], input[type="number"], input[type="search"]{background:#0b1222;border:1px solid #233046;color:#fff;border-radius:10px;padding:10px 12px}
+  .divider{height:12px}
+  .hidden{display:none}
+  .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;background:#0b1222;border:1px solid #233046;border-radius:6px;padding:2px 6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>水没検査 入力パネル</h1>
+    <span class="muted">（検査者 → 種別 → 合否 → 分岐）</span>
+  </header>
+
+  <!-- 検査者 -->
+  <section class="card" aria-label="検査者">
+    <div class="section-title">検査者</div>
+    <div class="row" id="operatorBar"></div>
+    <div class="muted" style="margin-top:6px">※ 作業者が変わったら別のボタンを押して切替。構成の変更は <span class="kbd">CONFIG.OPERATORS</span> を編集。</div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- 種別 -->
+  <section class="card" aria-label="種別">
+    <div class="section-title">検査種別</div>
+    <div class="grid" id="modeGrid"></div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- 合否 -->
+  <section class="card" aria-label="合否">
+    <div class="section-title">合否</div>
+    <div class="row">
+      <button class="btn ok" id="btnPass">合格</button>
+      <button class="btn err" id="btnFail">不合格</button>
+    </div>
+    <div class="muted" style="margin-top:6px">※ 合格は即記録（2秒の連打ガード）。</div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- 分岐（2:出荷前修理の不合格時） -->
+  <section class="card hidden" id="branchCard" aria-label="不合格分岐">
+    <div class="section-title">不合格（出荷前修理）</div>
+    <div class="row">
+      <button class="btn" data-reason="same" id="btnSame">1 同箇所</button>
+      <button class="btn" data-reason="diff" id="btnDiff">2 別箇所</button>
+      <button class="btn" data-reason="complex" id="btnComplex">3 同別複合</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn ok hidden" id="btnBranchSend">送信（分岐結果）</button>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- 1:出荷前製品 不合格時の詳細入力 -->
+  <section class="card hidden" id="preProductFailCard" aria-label="出荷前製品・不合格 詳細">
+    <div class="section-title">出荷前製品・不合格 詳細</div>
+    <div class="row">
+      <label class="pill">製造No.
+        <input id="mfNo" type="text" placeholder="例) 123456" inputmode="numeric" pattern="[0-9]{6}" />
+      </label>
+      <label class="pill">品名（音声入力可）
+        <input id="prodName" type="text" placeholder="例) 5×4 セミドライ" />
+      </label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div class="chips" id="posChips">
+        <span class="chip" data-position="front">前</span>
+        <span class="chip" data-position="back">後</span>
+      </div>
+      <div class="chips" id="sideChips">
+        <span class="chip" data-side="L">左</span>
+        <span class="chip" data-side="R">右</span>
+      </div>
+    </div>
+    <div class="section-title" style="margin-top:10px">水没箇所（必須）</div>
+    <div class="grid" id="partGrid1"></div>
+    <div class="section-title" style="margin-top:10px">不良種別（必須）</div>
+    <div class="chips" id="defectChips1"></div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn ok" id="btnSendPre1">送信</button>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- 2:出荷前修理 不合格=同箇所 詳細（複数箇所の繰り返し） -->
+  <section class="card hidden" id="preRepairSameCard" aria-label="出荷前修理 同箇所 詳細">
+    <div class="section-title">出荷前修理・同箇所 詳細入力</div>
+    <div class="row">
+      <label class="pill">問い合わせNo.
+        <input id="inqNo" type="text" placeholder="例) A123456 または 123456" inputmode="latin-prose" pattern="A?[0-9]{6}" />
+      </label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div class="chips" id="posChips2">
+        <span class="chip" data-position="front">前</span>
+        <span class="chip" data-position="back">後</span>
+      </div>
+      <div class="chips" id="sideChips2">
+        <span class="chip" data-side="L">左</span>
+        <span class="chip" data-side="R">右</span>
+      </div>
+    </div>
+    <div class="section-title" style="margin-top:10px">水没箇所（必須）</div>
+    <div class="grid" id="partGrid2"></div>
+    <div class="section-title" style="margin-top:10px">不良種別（必須）</div>
+    <div class="chips" id="defectChips2"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" id="btnAddLoc">＋ 箇所を追加</button>
+      <button class="btn ok" id="btnSendPre2">送信</button>
+    </div>
+    <div class="muted" style="margin-top:8px">※ 追加を押すと 2箇所目, 3箇所目… を順に登録できます（送信まで編集保持）。</div>
+    <div class="row" id="locPreview" style="margin-top:8px"></div>
+  </section>
+
+  <div class="log" id="log"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== 設定 =====
+const CONFIG = {
+  DEPLOY_URL: "https://script.google.com/macros/s/AKfycbwgjnuankF8LSPEFCDNaJ7FgacGlo9pwER7r5rSm-YRx-de776UhYdcL3Vl5RcHfTGq/exec", // ←GAS URL
+  KEY: "KEY_2025_水検", // ←GASの簡易キー
+  OPERATORS: [
+    {key:'matsukawa', label:'松川'},
+    {key:'chiba', label:'千葉'},
+    {key:'takahashi', label:'高橋'}
+  ],
+  MODES: [
+    {key:'1', label:'1 出荷前製品'},
+    {key:'2', label:'2 出荷前修理品'},
+    {key:'3', label:'3 初回修理品'},
+    {key:'4', label:'4 初回修理品 裏検査'}
+  ],
+  PARTS: ['ネック','肩','胸','脇','腕','肘','袖口','リスト','グローブ','腹','前股','後ろ股','腿','膝上','パッド','スネ','アンクル','ソックス部本体','ソックス部ジョイント','ファスナー部','背中','腰','尻','腿裏','膝裏','フクラハギ'],
+  DEFECTS: [
+    {key:'pinhole', label:'ピンホール'},
+    {key:'seam', label:'接合部'},
+    {key:'tape', label:'テープ'}
+  ],
+  SEND_DEBOUNCE_MS: 2000
+};
+
+// ===== 状態 =====
+const $ = (s)=>document.querySelector(s);
+const $$ = (s)=>Array.from(document.querySelectorAll(s));
+const $toast = $('#toast');
+const $log = $('#log');
+
+const state = {
+  operator: localStorage.getItem('operator') || '',
+  mode: localStorage.getItem('mode') || '',
+  lastSentAt: 0,
+  // 合否
+  result: null,
+  // 2:出荷前修理 → 分岐
+  branch: null, // 'same'|'diff'|'complex'
+  // 1:出荷前製品 不合格 詳細
+  pre1: { mfNo:'', prodName:'', position:'', side:'', part:'', defect:'' },
+  // 2:出荷前修理 同箇所 詳細（複数箇所）
+  pre2: { inqNo:'', position:'', side:'', part:'', defect:'', locs: [] }
+};
+
+function toast(msg){ $toast.textContent = msg; $toast.classList.add('show'); setTimeout(()=> $toast.classList.remove('show'), 1500); }
+function log(msg){ const t = new Date().toLocaleTimeString(); $log.textContent = `[${t}] ${msg}\n` + $log.textContent; }
+function debounceSendGuard(){ const now = Date.now(); if(now - state.lastSentAt < CONFIG.SEND_DEBOUNCE_MS){ toast('連続送信ガード（2秒）'); return false; } state.lastSentAt = now; return true; }
+
+// ===== UI構築 =====
+function buildOperators(){
+  const bar = $('#operatorBar'); bar.innerHTML = '';
+  CONFIG.OPERATORS.forEach(op=>{
+    const b = document.createElement('button'); b.className = 'btn'; b.textContent = op.label; b.dataset.key = op.key;
+    if(state.operator===op.key) b.classList.add('active');
+    b.onclick = ()=>{ state.operator = op.key; localStorage.setItem('operator', state.operator); $$('#operatorBar .btn').forEach(x=>x.classList.remove('active')); b.classList.add('active'); };
+    bar.appendChild(b);
+  });
+}
+function buildModes(){
+  const grid = $('#modeGrid'); grid.innerHTML = '';
+  CONFIG.MODES.forEach(md=>{
+    const b = document.createElement('button'); b.className = 'btn big'; b.textContent = md.label; b.dataset.key = md.key; if(state.mode===md.key) b.classList.add('active');
+    b.onclick = ()=>{ state.mode = md.key; localStorage.setItem('mode', state.mode); $$('#modeGrid .btn').forEach(x=>x.classList.remove('active')); b.classList.add('active'); resetFlow(); };
+    grid.appendChild(b);
+  });
+}
+function buildParts(gridId){
+  const grid = $(gridId); grid.innerHTML = '';
+  CONFIG.PARTS.forEach(label=>{ const btn = document.createElement('button'); btn.className = 'btn'; btn.textContent = label; btn.onclick = ()=>{ $$(gridId+' .btn').forEach(x=>x.classList.remove('active')); btn.classList.add('active'); if(gridId==='#partGrid1') state.pre1.part = label; else state.pre2.part = label; }; grid.appendChild(btn); });
+}
+function buildDefects(chipsId){
+  const chips = $(chipsId); chips.innerHTML = '';
+  CONFIG.DEFECTS.forEach(d=>{ const span = document.createElement('span'); span.className='chip'; span.textContent = d.label; span.dataset.key = d.key; span.onclick=()=>{ $$(chipsId+' .chip').forEach(x=>x.classList.remove('active')); span.classList.add('active'); if(chipsId==='#defectChips1') state.pre1.defect=d.key; else state.pre2.defect=d.key; }; chips.appendChild(span); });
+}
+function wireToggles(posWrapId, sideWrapId, which){
+  const posWrap = $(posWrapId); const sideWrap = $(sideWrapId);
+  posWrap.querySelectorAll('.chip').forEach(ch=> ch.onclick = ()=>{ const v=ch.dataset.position; const cur = (which==='pre1'? state.pre1.position : state.pre2.position); const next = (cur===v)? '' : v; if(which==='pre1') state.pre1.position=next; else state.pre2.position=next; posWrap.querySelectorAll('.chip').forEach(x=>x.classList.toggle('active', x.dataset.position===next)); });
+  sideWrap.querySelectorAll('.chip').forEach(ch=> ch.onclick = ()=>{ const v=ch.dataset.side; const cur = (which==='pre1'? state.pre1.side : state.pre2.side); const next = (cur===v)? '' : v; if(which==='pre1') state.pre1.side=next; else state.pre2.side=next; sideWrap.querySelectorAll('.chip').forEach(x=>x.classList.toggle('active', x.dataset.side===next)); });
+}
+
+// ===== 送信 =====
+function toQuery(p){ const usp=new URLSearchParams(); Object.entries(p).forEach(([k,v])=>{ if(v!==undefined && v!==null && v!=='') usp.append(k,String(v)); }); return usp.toString(); }
+async function send(params){ const url=https://script.google.com/macros/s/AKfycbwgjnuankF8LSPEFCDNaJ7FgacGlo9pwER7r5rSm-YRx-de776UhYdcL3Vl5RcHfTGq/exec+(https://script.google.com/macros/s/AKfycbwgjnuankF8LSPEFCDNaJ7FgacGlo9pwER7r5rSm-YRx-de776UhYdcL3Vl5RcHfTGq/exec.includes('?')?'&':'?')+toQuery(params); const res=await fetch(url,{method:'GET',cache:'no-store'}); if(!res.ok) throw new Error('HTTP '+res.status); const json=await res.json().catch(()=>({ok:false})); if(!json.ok) throw new Error('NG'); }
+
+async function sendSimpleRecord(result){
+  if(!state.operator) return toast('検査者を選んでください');
+  if(!state.mode) return toast('検査種別を選んでください');
+  if(!debounceSendGuard()) return;
+  const params = { k:CONFIG.KEY, operator:state.operator, mode:state.mode, result, qty:'1' };
+  try{ await send(params); toast('記録しました'); log(`mode:${state.mode} / ${result}`); }catch(e){ toast('送信失敗'); log('送信失敗: '+e.message); }
+}
+
+// 1:出荷前製品 不合格 → 送信
+async function sendPre1(){
+  if(!state.operator||!state.mode) return toast('検査者/種別を選択');
+  if(!debounceSendGuard()) return;
+  const {mfNo,prodName,position,side,part,defect}=state.pre1;
+  if(!part) return toast('水没箇所（部位）を選択');
+  if(!defect) return toast('不良種別を選択');
+  const params = { k:CONFIG.KEY, operator:state.operator, mode:state.mode, result:'fail', mf_no:mfNo, product_name:prodName, position, side, part, detail:defect, qty:'1' };
+  try{ await send(params); toast('記録しました'); log(`1不合格: ${part}/${defect}`); resetDetails(); }catch(e){ toast('送信失敗'); log('送信失敗: '+e.message); }
+}
+
+// 2:出荷前修理 同箇所 → 追加
+function addLoc(){
+  const {position,side,part,defect}=state.pre2;
+  if(!part) return toast('水没箇所（部位）を選択');
+  if(!defect) return toast('不良種別を選択');
+  state.pre2.locs.push({position,side,part,defect});
+  renderLocPreview();
+  // clear selection for next
+  state.pre2.position=''; state.pre2.side=''; state.pre2.part=''; state.pre2.defect='';
+  $('#posChips2').querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
+  $('#sideChips2').querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
+  $('#partGrid2').querySelectorAll('.btn').forEach(x=>x.classList.remove('active'));
+  $('#defectChips2').querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
+}
+function renderLocPreview(){
+  const box = $('#locPreview'); box.innerHTML='';
+  state.pre2.locs.forEach((loc,i)=>{ const tag=document.createElement('span'); tag.className='chip active'; tag.textContent=`#${i+1} ${(loc.position||'')}/${(loc.side||'')} ${loc.part} / ${loc.defect}`; box.appendChild(tag); });
+}
+async function sendPre2(){
+  if(!state.operator||!state.mode) return toast('検査者/種別を選択');
+  if(!debounceSendGuard()) return;
+  if(!state.pre2.inqNo || !/^A?\d{6}$/.test(state.pre2.inqNo)) return toast('問い合わせNo.を確認');
+  if(state.pre2.locs.length===0) return toast('箇所を1つ以上追加してください');
+  try{
+    // まとめて送信（1件ずつ）
+    for(const [idx,loc] of state.pre2.locs.entries()){
+      const params = { k:CONFIG.KEY, operator:state.operator, mode:state.mode, result:'fail', reason:'same', inquiry_no:state.pre2.inqNo, index:String(idx+1), position:loc.position, side:loc.side, part:loc.part, detail:loc.defect, qty:'1' };
+      await send(params);
+    }
+    toast('記録しました'); log(`2同箇所 不合格 ${state.pre2.locs.length}件`); resetDetails();
+  }catch(e){ toast('送信失敗'); log('送信失敗: '+e.message); }
+}
+
+// ===== フロー制御 =====
+function resetFlow(){
+  // hide all subcards
+  $('#branchCard').classList.add('hidden');
+  $('#preProductFailCard').classList.add('hidden');
+  $('#preRepairSameCard').classList.add('hidden');
+  state.result=null; state.branch=null; resetDetails();
+}
+function resetDetails(){
+  state.pre1 = { mfNo:'', prodName:'', position:'', side:'', part:'', defect:'' };
+  state.pre2 = { inqNo:'', position:'', side:'', part:'', defect:'', locs:[] };
+  // clear inputs
+  $('#mfNo').value=''; $('#prodName').value='';
+  $('#inqNo').value=''; $('#locPreview').innerHTML='';
+}
+
+// ===== 送信ラッパ（モードによる分岐） =====
+function handlePass(){
+  // 1,2,3,4 すべて 合格は即記録で終了
+  sendSimpleRecord('pass');
+}
+function handleFail(){
+  if(state.mode==='1'){
+    // 出荷前製品 → 詳細入力
+    $('#preProductFailCard').classList.remove('hidden');
+  } else if(state.mode==='2'){
+    // 出荷前修理 → 分岐表示
+    $('#branchCard').classList.remove('hidden');
+  } else if(state.mode==='3' || state.mode==='4'){
+    // 初回修理 / 裏検査 → 合否の後データ送信して終了
+    sendSimpleRecord('fail');
+  }
+}
+
+function chooseBranch(which){
+  state.branch = which; ['btnSame','btnDiff','btnComplex'].forEach(id=>$('#'+id).classList.remove('active'));
+  if(which==='same') $('#btnSame').classList.add('active');
+  if(which==='diff') $('#btnDiff').classList.add('active');
+  if(which==='complex') $('#btnComplex').classList.add('active');
+  // diff/complex は送信ボタン出現
+  $('#btnBranchSend').classList.toggle('hidden', which==='same');
+  // same は詳細入力カードへ
+  if(which==='same'){
+    $('#preRepairSameCard').classList.remove('hidden');
+  } else {
+    $('#preRepairSameCard').classList.add('hidden');
+  }
+}
+
+async function sendBranch(){
+  if(!state.operator||!state.mode||!state.branch) return toast('条件不足');
+  if(!debounceSendGuard()) return;
+  const params = { k:CONFIG.KEY, operator:state.operator, mode:state.mode, result:'fail', reason:state.branch, qty:'1' };
+  try{ await send(params); toast('記録しました'); log(`2不合格: ${state.branch}`); resetFlow(); }catch(e){ toast('送信失敗'); log('送信失敗: '+e.message); }
+}
+
+// ===== 初期化 =====
+function init(){
+  buildOperators();
+  buildModes();
+  // detail builders
+  buildParts('#partGrid1'); buildDefects('#defectChips1'); wireToggles('#posChips','#sideChips','pre1');
+  buildParts('#partGrid2'); buildDefects('#defectChips2'); wireToggles('#posChips2','#sideChips2','pre2');
+
+  // inputs
+  $('#mfNo').addEventListener('input', e=> state.pre1.mfNo = e.target.value.trim());
+  $('#prodName').addEventListener('input', e=> state.pre1.prodName = e.target.value.trim());
+  $('#inqNo').addEventListener('input', e=> state.pre2.inqNo = e.target.value.trim().toUpperCase());
+
+  // buttons
+  $('#btnPass').onclick = handlePass;
+  $('#btnFail').onclick = handleFail;
+
+  $('#btnSame').onclick = ()=> chooseBranch('same');
+  $('#btnDiff').onclick = ()=> chooseBranch('diff');
+  $('#btnComplex').onclick = ()=> chooseBranch('complex');
+  $('#btnBranchSend').onclick = sendBranch;
+
+  $('#btnSendPre1').onclick = sendPre1;
+  $('#btnAddLoc').onclick = addLoc;
+  $('#btnSendPre2').onclick = sendPre2;
+}
+
+init();
+</script>
+</body>
+</html>
