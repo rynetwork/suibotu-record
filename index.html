@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>水没検査 入力パネル（要件対応β）</title>
+<title>水没検査 入力パネル（最終版）</title>
 <style>
   :root{--bg:#0f172a;--card:#111827;--muted:#94a3b8;--ok:#16a34a;--warn:#f59e0b;--err:#ef4444;--ink:#e5e7eb;--accent:#22d3ee}
   *{box-sizing:border-box}
@@ -158,8 +158,8 @@
 <script>
 // ===== 設定 =====
 const CONFIG = {
-  DEPLOY_URL: "https://script.google.com/macros/s/AKfycbwgjnuankF8LSPEFCDNaJ7FgacGlo9pwER7r5rSm-YRx-de776UhYdcL3Vl5RcHfTGq/exec", // ←GAS URL
-  KEY: "KEY_2025_水検", // ←GASの簡易キー
+  DEPLOY_URL: "https://script.google.com/macros/s/PASTE_YOUR_DEPLOY_ID/exec", // ←GAS URL
+  KEY: "KEY_2025_水検", // ←GASの簡易キーと一致させる
   OPERATORS: [
     {key:'matsukawa', label:'松川'},
     {key:'chiba', label:'千葉'},
@@ -238,7 +238,7 @@ function wireToggles(posWrapId, sideWrapId, which){
 
 // ===== 送信 =====
 function toQuery(p){ const usp=new URLSearchParams(); Object.entries(p).forEach(([k,v])=>{ if(v!==undefined && v!==null && v!=='') usp.append(k,String(v)); }); return usp.toString(); }
-async function send(params){ const url=https://script.google.com/macros/s/AKfycbwgjnuankF8LSPEFCDNaJ7FgacGlo9pwER7r5rSm-YRx-de776UhYdcL3Vl5RcHfTGq/exec+(https://script.google.com/macros/s/AKfycbwgjnuankF8LSPEFCDNaJ7FgacGlo9pwER7r5rSm-YRx-de776UhYdcL3Vl5RcHfTGq/exec.includes('?')?'&':'?')+toQuery(params); const res=await fetch(url,{method:'GET',cache:'no-store'}); if(!res.ok) throw new Error('HTTP '+res.status); const json=await res.json().catch(()=>({ok:false})); if(!json.ok) throw new Error('NG'); }
+async function send(params){ const url=CONFIG.DEPLOY_URL+(CONFIG.DEPLOY_URL.includes('?')?'&':'?')+toQuery(params); const res=await fetch(url,{method:'GET',cache:'no-store'}); if(!res.ok) throw new Error('HTTP '+res.status); const json=await res.json().catch(()=>({ok:false})); if(!json.ok) throw new Error('NG'); }
 
 async function sendSimpleRecord(result){
   if(!state.operator) return toast('検査者を選んでください');
@@ -283,7 +283,6 @@ async function sendPre2(){
   if(!state.pre2.inqNo || !/^A?\d{6}$/.test(state.pre2.inqNo)) return toast('問い合わせNo.を確認');
   if(state.pre2.locs.length===0) return toast('箇所を1つ以上追加してください');
   try{
-    // まとめて送信（1件ずつ）
     for(const [idx,loc] of state.pre2.locs.entries()){
       const params = { k:CONFIG.KEY, operator:state.operator, mode:state.mode, result:'fail', reason:'same', inquiry_no:state.pre2.inqNo, index:String(idx+1), position:loc.position, side:loc.side, part:loc.part, detail:loc.defect, qty:'1' };
       await send(params);
@@ -294,7 +293,6 @@ async function sendPre2(){
 
 // ===== フロー制御 =====
 function resetFlow(){
-  // hide all subcards
   $('#branchCard').classList.add('hidden');
   $('#preProductFailCard').classList.add('hidden');
   $('#preRepairSameCard').classList.add('hidden');
@@ -303,25 +301,17 @@ function resetFlow(){
 function resetDetails(){
   state.pre1 = { mfNo:'', prodName:'', position:'', side:'', part:'', defect:'' };
   state.pre2 = { inqNo:'', position:'', side:'', part:'', defect:'', locs:[] };
-  // clear inputs
   $('#mfNo').value=''; $('#prodName').value='';
   $('#inqNo').value=''; $('#locPreview').innerHTML='';
 }
 
-// ===== 送信ラッパ（モードによる分岐） =====
-function handlePass(){
-  // 1,2,3,4 すべて 合格は即記録で終了
-  sendSimpleRecord('pass');
-}
+function handlePass(){ sendSimpleRecord('pass'); }
 function handleFail(){
   if(state.mode==='1'){
-    // 出荷前製品 → 詳細入力
     $('#preProductFailCard').classList.remove('hidden');
   } else if(state.mode==='2'){
-    // 出荷前修理 → 分岐表示
     $('#branchCard').classList.remove('hidden');
   } else if(state.mode==='3' || state.mode==='4'){
-    // 初回修理 / 裏検査 → 合否の後データ送信して終了
     sendSimpleRecord('fail');
   }
 }
@@ -331,9 +321,7 @@ function chooseBranch(which){
   if(which==='same') $('#btnSame').classList.add('active');
   if(which==='diff') $('#btnDiff').classList.add('active');
   if(which==='complex') $('#btnComplex').classList.add('active');
-  // diff/complex は送信ボタン出現
   $('#btnBranchSend').classList.toggle('hidden', which==='same');
-  // same は詳細入力カードへ
   if(which==='same'){
     $('#preRepairSameCard').classList.remove('hidden');
   } else {
@@ -352,16 +340,13 @@ async function sendBranch(){
 function init(){
   buildOperators();
   buildModes();
-  // detail builders
   buildParts('#partGrid1'); buildDefects('#defectChips1'); wireToggles('#posChips','#sideChips','pre1');
   buildParts('#partGrid2'); buildDefects('#defectChips2'); wireToggles('#posChips2','#sideChips2','pre2');
 
-  // inputs
   $('#mfNo').addEventListener('input', e=> state.pre1.mfNo = e.target.value.trim());
   $('#prodName').addEventListener('input', e=> state.pre1.prodName = e.target.value.trim());
   $('#inqNo').addEventListener('input', e=> state.pre2.inqNo = e.target.value.trim().toUpperCase());
 
-  // buttons
   $('#btnPass').onclick = handlePass;
   $('#btnFail').onclick = handleFail;
 
