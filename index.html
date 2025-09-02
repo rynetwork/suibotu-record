@@ -35,12 +35,17 @@ header h1{font-size:var(--font-size-large);margin:0 8px 0 0;font-weight:800;lett
 .chip.active{border-color:#2aa6c8;background:#0e1a2c}
 .muted{color:var(--muted);font-size:18px}
 .log{margin-top:14px;font-size:16px;color:var(--muted);max-height:180px;overflow:auto;white-space:pre-wrap}
-.toast{position:fixed;inset:auto 16px 16px auto;background:rgba(2,6,23,.9);border:1px solid #1f2937;color:var(--ink);padding:14px 16px;border-radius:14px;box-shadow:0 10px 22px rgba(0,0,0,.35);opacity:0;transform:translateY(8px);transition:.2s;font-size:var(--font-size-base)}
-.toast.show{opacity:1;transform:translateY(0)}
+.toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(2,6,23,.95);border:2px solid #ef4444;color:#fff;padding:20px 24px;border-radius:16px;box-shadow:0 12px 26px rgba(0,0,0,.45);opacity:0;transition:.3s;font-size:var(--font-size-large);font-weight:800;text-align:center;z-index:1000}
+.toast.show{opacity:1}
 input[type="text"], input[type="number"], input[type="search"]{background:#0b1222;border:1px solid #233046;color:#fff;border-radius:12px;padding:12px 14px;font-size:var(--font-size-base)}
 .divider{height:14px}
 .hidden{display:none}
 .kbd{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;background:#0b1222;border:1px solid #233046;border-radius:6px;padding:4px 8px;font-size:16px}
+
+
+/* 検査者ボタンを3等分 */
+#operatorBar{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%}
+#operatorBar .btn{width:100%;text-align:center}
 </style>
 </head>
 <body>
