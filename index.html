@@ -360,7 +360,8 @@ function init(){
   $('#btnSendPre2').onclick = sendPre2;
 }
 
-init();
+// DOMがまだ描画中の環境で初期化が走らない端末があったため、DOMContentLoaded で確実に実行
+window.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
