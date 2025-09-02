@@ -158,7 +158,7 @@
 <script>
 // ===== 設定 =====
 const CONFIG = {
-  DEPLOY_URL: "https://script.google.com/macros/s/AKfycbymboTE-OWDIFeqw2Pcuu5riOdZWnyfUyNF4SIeMz2usqurn_pvCZx5fdBqQxag3_3s/exec", // ←GAS URL
+  DEPLOY_URL: "https://script.google.com/macros/s/AKfycbw1oNqiniXD9MUdca7uv2GAf-AoZs8Z5xEshgBiMbUtvJ5tq7LfHj4UG8w9gedh03uy/exec", // ←GAS URL
   KEY: "KEY_2025_SUIKEN", // ←GASの簡易キーと一致させる
   OPERATORS: [
     {key:'matsukawa', label:'松川'},
@@ -238,26 +238,79 @@ function wireToggles(posWrapId, sideWrapId, which){
 
 // ===== 送信 =====
 function toQuery(p){ const usp=new URLSearchParams(); Object.entries(p).forEach(([k,v])=>{ if(v!==undefined && v!==null && v!=='') usp.append(k,String(v)); }); return usp.toString(); }
+
+// 送信ごとに共通で使うユニークID（グループID）
+function makeGroupId(){
+  const d=new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  const ts = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  const rnd = Math.random().toString(36).slice(-4).toUpperCase();
+  return `G${ts}-${rnd}`;
+}
+
 async function send(params){ const url=CONFIG.DEPLOY_URL+(CONFIG.DEPLOY_URL.includes('?')?'&':'?')+toQuery(params); const res=await fetch(url,{method:'GET',cache:'no-store'}); if(!res.ok) throw new Error('HTTP '+res.status); const json=await res.json().catch(()=>({ok:false})); if(!json.ok) throw new Error('NG'); }
 
 async function sendSimpleRecord(result){
   if(!state.operator) return toast('検査者を選んでください');
   if(!state.mode) return toast('検査種別を選んでください');
   if(!debounceSendGuard()) return;
-  const params = { k:CONFIG.KEY, operator:state.operator, mode:state.mode, result, qty:'1' };
-  try{ await send(params); toast('記録しました'); log(`mode:${state.mode} / ${result}`); }catch(e){ toast('送信失敗'); log('送信失敗: '+e.message); }
+
+  const group_id = makeGroupId();
+  const params = {
+    k: CONFIG.KEY,
+    operator: state.operator,
+    mode: state.mode,
+    result,           // 'pass' | 'fail'
+    qty: '1',
+    group_id,         // ★ 追加：ユニークID
+    fail_seq: '1'     // ★ 追加：最初の行を「不合格1」扱い
+  };
+
+  try{
+    await send(params);
+    toast('記録しました');
+    log(`mode:${state.mode} / ${result} / ${group_id}`);
+  }catch(e){
+    toast('送信失敗'); log('送信失敗: '+e.message);
+  }
 }
+
 
 // 1:出荷前製品 不合格 → 送信
 async function sendPre1(){
   if(!state.operator||!state.mode) return toast('検査者/種別を選択');
   if(!debounceSendGuard()) return;
+
   const {mfNo,prodName,position,side,part,defect}=state.pre1;
   if(!part) return toast('水没箇所（部位）を選択');
   if(!defect) return toast('不良種別を選択');
-  const params = { k:CONFIG.KEY, operator:state.operator, mode:state.mode, result:'fail', mf_no:mfNo, product_name:prodName, position, side, part, detail:defect, qty:'1' };
-  try{ await send(params); toast('記録しました'); log(`1不合格: ${part}/${defect}`); resetDetails(); }catch(e){ toast('送信失敗'); log('送信失敗: '+e.message); }
+
+  const group_id = makeGroupId();
+  const params = {
+    k: CONFIG.KEY,
+    operator: state.operator,
+    mode: state.mode,
+    result: 'fail',
+    mf_no: mfNo,
+    product_name: prodName,
+    position, side,
+    part,
+    detail: defect,
+    qty: '1',
+    group_id,          // ★ 追加
+    fail_seq: '1'      // ★ 追加
+  };
+
+  try{
+    await send(params);
+    toast('記録しました');
+    log(`1不合格: ${part}/${defect} / ${group_id}`);
+    resetDetails();
+  }catch(e){
+    toast('送信失敗'); log('送信失敗: '+e.message);
+  }
 }
+
 
 // 2:出荷前修理 同箇所 → 追加
 function addLoc(){
@@ -282,14 +335,36 @@ async function sendPre2(){
   if(!debounceSendGuard()) return;
   if(!state.pre2.inqNo || !/^A?\d{6}$/.test(state.pre2.inqNo)) return toast('問い合わせNo.を確認');
   if(state.pre2.locs.length===0) return toast('箇所を1つ以上追加してください');
+
   try{
+    const group_id = makeGroupId(); // ★ 送信全体で共通
     for(const [idx,loc] of state.pre2.locs.entries()){
-      const params = { k:CONFIG.KEY, operator:state.operator, mode:state.mode, result:'fail', reason:'same', inquiry_no:state.pre2.inqNo, index:String(idx+1), position:loc.position, side:loc.side, part:loc.part, detail:loc.defect, qty:'1' };
+      const params = {
+        k: CONFIG.KEY,
+        operator: state.operator,
+        mode: state.mode,
+        result: 'fail',
+        reason: 'same',
+        inquiry_no: state.pre2.inqNo,
+        index: String(idx+1),
+        position: loc.position,
+        side: loc.side,
+        part: loc.part,
+        detail: loc.defect,
+        qty: '1',
+        group_id,               // ★ 共通
+        fail_seq: String(idx+1) // ★ 1,2,3…
+      };
       await send(params);
     }
-    toast('記録しました'); log(`2同箇所 不合格 ${state.pre2.locs.length}件`); resetDetails();
-  }catch(e){ toast('送信失敗'); log('送信失敗: '+e.message); }
+    toast('記録しました');
+    log(`2同箇所 不合格 ${state.pre2.locs.length}件 / ${group_id}`);
+    resetDetails();
+  }catch(e){
+    toast('送信失敗'); log('送信失敗: '+e.message);
+  }
 }
+
 
 // ===== フロー制御 =====
 function resetFlow(){
@@ -332,9 +407,29 @@ function chooseBranch(which){
 async function sendBranch(){
   if(!state.operator||!state.mode||!state.branch) return toast('条件不足');
   if(!debounceSendGuard()) return;
-  const params = { k:CONFIG.KEY, operator:state.operator, mode:state.mode, result:'fail', reason:state.branch, qty:'1' };
-  try{ await send(params); toast('記録しました'); log(`2不合格: ${state.branch}`); resetFlow(); }catch(e){ toast('送信失敗'); log('送信失敗: '+e.message); }
+
+  const group_id = makeGroupId();
+  const params = {
+    k: CONFIG.KEY,
+    operator: state.operator,
+    mode: state.mode,
+    result: 'fail',
+    reason: state.branch,
+    qty: '1',
+    group_id,        // ★ 追加
+    fail_seq: '1'    // ★ 追加
+  };
+
+  try{
+    await send(params);
+    toast('記録しました');
+    log(`2不合格: ${state.branch} / ${group_id}`);
+    resetFlow();
+  }catch(e){
+    toast('送信失敗'); log('送信失敗: '+e.message);
+  }
 }
+
 
 // ===== 初期化 =====
 function init(){
