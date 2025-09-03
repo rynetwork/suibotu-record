@@ -331,15 +331,18 @@ async function sendPre1(){ // 出荷前製品の不合格詳細（部位＋不�
     group_id: makeGroupId(),
     fail_seq: '1'
   };
-  try{
-    await send(params);
-    toast('記録しました');
-    // 入力カードを閉じる
-    $('#preProductFailCard').classList.add('hidden');
-    // 選択リセット
-    $$('#partGrid1 .btn').forEach(x=>x.classList.remove('active'));
-    $$('#defectChips1 .chip').forEach(x=>x.classList.remove('active'));
-  }catch(e){ toast('送信失敗: '+e.message); }
+try {
+  // ここは通信だけ
+  await send(params);
+} catch (e) {
+  toast('送信失敗'); log('送信失敗: ' + e.message);
+  return; // 失敗時は後続UI処理に進まない
+}
+// ←ここからUI後処理（ログ/リセット等）
+toast('記録しました');
+log(`2同箇所 不合格 ${state.pre2.locs.length}件 / ${group_id}`);
+resetDetails();
+
 }
 
 /* ==== イベント ==== */
