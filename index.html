@@ -61,8 +61,6 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
   font-size: 14px;
   cursor: pointer;
 }
-.hidden{display:none}
-
 </style>
 </head>
 <body>
@@ -185,114 +183,224 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
 <div class="toast" id="toast"></div>
 
 <script>
-/* ==== 設定 ==== */
+// ===== 設定 =====
 const CONFIG = {
-  // ★ここをあなたのGASデプロイURL(/exec)に差し替え
   DEPLOY_URL: "https://script.google.com/macros/s/AKfycbw1oNqiniXD9MUdca7uv2GAf-AoZs8Z5xEshgBiMbUtvJ5tq7LfHj4UG8w9gedh03uy/exec",
-  // ★GAS側 CONF.KEY と一致させる
   KEY: "KEY_2025_SUIKEN",
-
-  OPERATORS:[{key:'松川(将)',label:'松川'},{key:'千葉(英)',label:'千葉'},{key:'高橋(未)',label:'高橋'}],
-  MODES:[{key:'1',label:'1 出荷前製品'},{key:'2',label:'2 出荷前修理品'},{key:'3',label:'3 初回修理品'},{key:'4',label:'4 初回修理品 裏検査'}],
-  PARTS:[{value:'アンクル',label:'アンクル'},{value:'腕',label:'腕(ウデ)'},{value:'肩',label:'肩(カタ)'},{value:'グローブ',label:'グローブ'},{value:'腰',label:'腰(コシ)'},{value:'背中',label:'背中(セナカ)'},{value:'袖口',label:'袖口(ソデグチ)'},{value:'ソックス部ジョイント',label:'ソックス部ジョイント'},{value:'ソックス部本体',label:'ソックス部本体'},{value:'スネ',label:'スネ'},{value:'尻',label:'尻(シリ)'},{value:'胸',label:'胸(ムネ)'},{value:'ネック',label:'ネック'},{value:'膝上',label:'膝上(ヒザウエ)'},{value:'膝裏',label:'膝裏(ヒザウラ)'},{value:'腹',label:'腹(ハラ)'},{value:'パッド',label:'パッド'},{value:'ファスナー部',label:'ファスナー部'},{value:'フクラハギ',label:'フクラハギ'},{value:'前股',label:'前股(マエマタ)'},{value:'後ろ股',label:'後ろ股(ウシロマタ)'},{value:'腿',label:'腿(モモ)'},{value:'腿裏',label:'腿裏(モモウラ)'},{value:'脇',label:'脇(ワキ)'},{value:'リスト',label:'リスト'}],
-  DEFECTS:[{key:'pinhole',label:'ピンホール'},{key:'seam',label:'接合部'},{key:'tape',label:'テープ'}],
+  OPERATORS: [
+    {key:'松川(将)', label:'松川'},
+    {key:'千葉(英)', label:'千葉'},
+    {key:'高橋(未)', label:'高橋'}
+  ],
+  MODES: [
+    {key:'1', label:'1 出荷前製品'},
+    {key:'2', label:'2 出荷前修理品'},
+    {key:'3', label:'3 初回修理品'},
+    {key:'4', label:'4 初回修理品 裏検査'}
+  ],
+  PARTS: [
+    { value: 'アンクル', label: 'アンクル' },
+    { value: '腕', label: '腕(ウデ)' },
+    { value: '肩', label: '肩(カタ)' },
+    { value: 'グローブ', label: 'グローブ' },
+    { value: '腰', label: '腰(コシ)' },
+    { value: '背中', label: '背中(セナカ)' },
+    { value: '袖口', label: '袖口(ソデグチ)' },
+    { value: 'ソックス部ジョイント', label: 'ソックス部ジョイント' },
+    { value: 'ソックス部本体', label: 'ソックス部本体' },
+    { value: 'スネ', label: 'スネ' },
+    { value: '尻', label: '尻(シリ)' },
+    { value: '胸', label: '胸(ムネ)' },
+    { value: 'ネック', label: 'ネック' },
+    { value: '膝上', label: '膝上(ヒザウエ)' },
+    { value: '膝裏', label: '膝裏(ヒザウラ)' },
+    { value: '腹', label: '腹(ハラ)' },
+    { value: 'パッド', label: 'パッド' },
+    { value: 'ファスナー部', label: 'ファスナー部' },
+    { value: 'フクラハギ', label: 'フクラハギ' },
+    { value: '前股', label: '前股(マエマタ)' },
+    { value: '後ろ股', label: '後ろ股(ウシロマタ)' },
+    { value: '腿', label: '腿(モモ)' },
+    { value: '腿裏', label: '腿裏(モモウラ)' },
+    { value: '脇', label: '脇(ワキ)' },
+    { value: 'リスト', label: 'リスト' }
+  ],
+  DEFECTS: [
+    {key:'pinhole', label:'ピンホール'},
+    {key:'seam', label:'接合部'},
+    {key:'tape', label:'テープ'}
+  ],
   SEND_DEBOUNCE_MS: 2000
 };
 
-/* ==== 便利関数・状態 ==== */
-const $ = s => document.querySelector(s);
-const $$ = s => Array.from(document.querySelectorAll(s));
-const toastEl = document.getElementById('toast');
-function toast(msg){ toastEl.textContent = msg; toastEl.classList.add('show'); setTimeout(()=>toastEl.classList.remove('show'),1800); }
+// ===== 状態 =====
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => Array.from(document.querySelectorAll(s));
+const $toast = $('#toast');
+const $log = $('#log');
 
 const state = {
-  operator:'',
-  mode:'',
-  lastSentAt:0,
+  operator: localStorage.getItem('operator') || '',
+  mode: localStorage.getItem('mode') || '',
+  lastSentAt: 0,
+  result: null,
+  branch: null,
+  pre1: { mfNo:'', prodName:'', position:'', side:'', part:'', defect:'' },
+  pre2: { inqNo:'', position:'', side:'', part:'', defect:'', locs:[] }
 };
 
-function toQuery(p){
-  const usp = new URLSearchParams();
-  Object.entries(p).forEach(([k,v])=>{ if(v!==undefined && v!==null && v!=='') usp.append(k,String(v)); });
-  return usp.toString();
-}
-function makeGroupId(){
-  const d=new Date(), pad=n=>String(n).padStart(2,'0');
-  const ts=`${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
-  const rnd=Math.random().toString(36).slice(-4).toUpperCase();
-  return `G${ts}-${rnd}`;
-}
-function guard(){
-  const now=Date.now();
-  if(now - state.lastSentAt < CONFIG.SEND_DEBOUNCE_MS){ toast('連続送信ガード（2秒）'); return false; }
-  state.lastSentAt = now; return true;
-}
-async function send(params){
-  const url = CONFIG.DEPLOY_URL + (CONFIG.DEPLOY_URL.includes('?')?'&':'?') + toQuery(params);
-  const res = await fetch(url,{method:'GET',cache:'no-store'});
-  if(!res.ok) throw new Error('HTTP '+res.status);
-  const json = await res.json().catch(()=>({ok:false}));
-  if(!json.ok) throw new Error(json.error||'NG');
+function toast(msg) { 
+  $toast.textContent = msg; 
+  $toast.classList.add('show'); 
+  setTimeout(() => $toast.classList.remove('show'), 1500); 
 }
 
-/* ==== UI構築 ==== */
-function buildOperators(){
-  const bar = $('#operatorBar'); bar.innerHTML='';
-  CONFIG.OPERATORS.forEach(op=>{
-    const b = document.createElement('button');
-    b.className='btn big'; b.textContent=op.label;
-    if(state.operator===op.key) b.classList.add('active');
-    b.onclick=()=>{
-      state.operator = op.key;
-      $$('#operatorBar .btn').forEach(x=>x.classList.remove('active'));
-      b.classList.add('active');
+function log(msg) { 
+  const t = new Date().toLocaleTimeString(); 
+  $log.textContent = `[${t}] ${msg}\n` + $log.textContent; 
+}
+
+function debounceSendGuard() { 
+  const now = Date.now(); 
+  if(now - state.lastSentAt < CONFIG.SEND_DEBOUNCE_MS) { 
+    toast('連続送信ガード（2秒）'); 
+    return false; 
+  } 
+  state.lastSentAt = now; 
+  return true; 
+}
+
+// ===== UI構築 =====
+function buildOperators() {
+  const bar = $('#operatorBar'); 
+  bar.innerHTML = '';
+  CONFIG.OPERATORS.forEach(op => {
+    const b = document.createElement('button'); 
+    b.className = 'btn'; 
+    b.textContent = op.label; 
+    b.dataset.key = op.key;
+    if(state.operator === op.key) b.classList.add('active');
+    b.onclick = () => { 
+      state.operator = op.key; 
+      localStorage.setItem('operator', state.operator); 
+      $$('#operatorBar .btn').forEach(x => x.classList.remove('active')); 
+      b.classList.add('active'); 
     };
     bar.appendChild(b);
   });
 }
 
-function buildModes(){
-  const grid = $('#modeGrid'); grid.innerHTML='';
-  CONFIG.MODES.forEach(m=>{
-    const b=document.createElement('button');
-    b.className='btn big'; b.textContent=m.label;
-    if(state.mode===m.key) b.classList.add('active');
-    b.onclick=()=>{
-      state.mode = m.key;
-      $$('#modeGrid .btn').forEach(x=>x.classList.remove('active'));
-      b.classList.add('active');
-      // 出荷前製品の不合格詳細だけ今回表示
-      $('#preProductFailCard').classList.add('hidden');
+function buildModes() {
+  const grid = $('#modeGrid'); 
+  grid.innerHTML = '';
+  CONFIG.MODES.forEach(md => {
+    const b = document.createElement('button'); 
+    b.className = 'btn big'; 
+    b.textContent = md.label; 
+    b.dataset.key = md.key; 
+    if(state.mode === md.key) b.classList.add('active');
+    b.onclick = () => { 
+      state.mode = md.key; 
+      localStorage.setItem('mode', state.mode); 
+      $$('#modeGrid .btn').forEach(x => x.classList.remove('active')); 
+      b.classList.add('active'); 
+      resetFlow(); 
     };
     grid.appendChild(b);
   });
 }
 
-function buildParts(gridId){
-  const grid=$(gridId); grid.innerHTML='';
-  CONFIG.PARTS.forEach(p=>{
-    const btn=document.createElement('button');
-    btn.className='btn'; btn.textContent=p.label; btn.dataset.value=p.value;
-    btn.onclick=()=>{ $$(gridId+' .btn').forEach(x=>x.classList.remove('active')); btn.classList.add('active'); };
-    grid.appendChild(btn);
+function buildParts(gridId) {
+  const grid = $(gridId); 
+  grid.innerHTML = '';
+  CONFIG.PARTS.forEach(part => { 
+    const btn = document.createElement('button'); 
+    btn.className = 'btn'; 
+    btn.textContent = part.label; 
+    btn.onclick = () => { 
+      $$(gridId + ' .btn').forEach(x => x.classList.remove('active')); 
+      btn.classList.add('active'); 
+      if(gridId === '#partGrid1') state.pre1.part = part.value; 
+      else state.pre2.part = part.value; 
+    }; 
+    grid.appendChild(btn); 
   });
 }
 
-function buildDefects(id){
-  const box=$(id); box.innerHTML='';
-  CONFIG.DEFECTS.forEach(d=>{
-    const chip=document.createElement('span');
-    chip.className='chip'; chip.textContent=d.label; chip.dataset.value=d.key;
-    chip.onclick=()=>{ $$(id+' .chip').forEach(x=>x.classList.remove('active')); chip.classList.add('active'); };
-    box.appendChild(chip);
+function buildDefects(chipsId) {
+  const chips = $(chipsId); 
+  chips.innerHTML = '';
+  CONFIG.DEFECTS.forEach(d => { 
+    const span = document.createElement('span'); 
+    span.className = 'chip'; 
+    span.textContent = d.label; 
+    span.dataset.key = d.key; 
+    span.onclick = () => { 
+      $$(chipsId + ' .chip').forEach(x => x.classList.remove('active')); 
+      span.classList.add('active'); 
+      if(chipsId === '#defectChips1') state.pre1.defect = d.key; 
+      else state.pre2.defect = d.key; 
+    }; 
+    chips.appendChild(span); 
   });
 }
 
-/* ==== 送信ロジック ==== */
-async function sendSimple(result){
-  if(!state.operator) return toast('検査者を選択');
-  if(!state.mode) return toast('検査種別を選択');
-  if(!guard()) return;
+function wireToggles(posWrapId, sideWrapId, which) {
+  const posWrap = $(posWrapId); 
+  const sideWrap = $(sideWrapId);
+  
+  posWrap.querySelectorAll('.chip').forEach(ch => {
+    ch.onclick = () => { 
+      const v = ch.dataset.position; 
+      const cur = (which === 'pre1' ? state.pre1.position : state.pre2.position); 
+      const next = (cur === v) ? '' : v; 
+      if(which === 'pre1') state.pre1.position = next; 
+      else state.pre2.position = next; 
+      posWrap.querySelectorAll('.chip').forEach(x => x.classList.toggle('active', x.dataset.position === next)); 
+    };
+  });
+  
+  sideWrap.querySelectorAll('.chip').forEach(ch => {
+    ch.onclick = () => { 
+      const v = ch.dataset.side; 
+      const cur = (which === 'pre1' ? state.pre1.side : state.pre2.side); 
+      const next = (cur === v) ? '' : v; 
+      if(which === 'pre1') state.pre1.side = next; 
+      else state.pre2.side = next; 
+      sideWrap.querySelectorAll('.chip').forEach(x => x.classList.toggle('active', x.dataset.side === next)); 
+    };
+  });
+}
+
+// ===== 送信 =====
+function toQuery(p) { 
+  const usp = new URLSearchParams(); 
+  Object.entries(p).forEach(([k,v]) => { 
+    if(v !== undefined && v !== null && v !== '') usp.append(k, String(v)); 
+  }); 
+  return usp.toString(); 
+}
+
+function makeGroupId() {
+  const d = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const ts = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  const rnd = Math.random().toString(36).slice(-4).toUpperCase();
+  return `G${ts}-${rnd}`;
+}
+
+async function send(params) { 
+  const url = CONFIG.DEPLOY_URL + (CONFIG.DEPLOY_URL.includes('?') ? '&' : '?') + toQuery(params); 
+  const res = await fetch(url, {method:'GET', cache:'no-store'}); 
+  if(!res.ok) throw new Error('HTTP ' + res.status); 
+  const json = await res.json().catch(() => ({ok:false})); 
+  if(!json.ok) throw new Error('NG'); 
+}
+
+async function sendSimpleRecord(result) {
+  if(!state.operator) return toast('検査者を選んでください');
+  if(!state.mode) return toast('検査種別を選んでください');
+  if(!debounceSendGuard()) return;
 
   const group_id = makeGroupId();
   const params = {
@@ -302,87 +410,293 @@ async function sendSimple(result){
     result,
     qty: '1',
     group_id,
-    fail_seq: (result==='pass'?'0':'1') // ★合格は0
+    fail_seq: (result === 'pass' ? '0' : '1')
   };
-  try{
+
+  try {
     await send(params);
     toast('記録しました');
-  }catch(e){ toast('送信失敗: '+e.message); }
+    log(`mode:${state.mode} / ${result} / ${group_id}`);
+    resetFlow();
+  } catch(e) {
+    toast('送信失敗'); 
+    log('送信失敗: ' + e.message);
+  }
 }
 
-// 出荷前製品の不合格（部位＋不良）送信
-async function sendPre1(){
-  if (!state.operator) return toast('検査者を選択');
-  if (state.mode !== '1') return toast('種別を「1 出荷前製品」にして下さい');
-  if (!guard()) return;  // 2秒の連打ガード
+async function sendPre1() {
+  if(!state.operator || !state.mode) return toast('検査者/種別を選択');
+  if(!debounceSendGuard()) return;
 
-  const partBtn    = $$('#partGrid1 .btn.active')[0];
-  const defectChip = $$('#defectChips1 .chip.active')[0];
-  if (!partBtn)    return toast('水没箇所（部位）を選択');
-  if (!defectChip) return toast('不良種別を選択');
+  const {mfNo, prodName, position, side, part, defect} = state.pre1;
+  if(!part) return toast('水没箇所（部位）を選択');
+  if(!defect) return toast('不良種別を選択');
 
+  const group_id = makeGroupId();
   const params = {
     k: CONFIG.KEY,
     operator: state.operator,
     mode: state.mode,
     result: 'fail',
-    part:   partBtn.dataset.value,      // 記録は漢字のみ
-    detail: defectChip.dataset.value,   // 'pinhole' | 'seam' | 'tape'
+    mf_no: mfNo,
+    product_name: prodName,
+    position, 
+    side,
+    part,
+    detail: defect,
     qty: '1',
-    group_id: makeGroupId(),
+    group_id,
     fail_seq: '1'
   };
 
   try {
-    // 通信だけ try/catch（ここで例外なら以降のUI処理をしない）
     await send(params);
-  } catch (e) {
-    toast('送信失敗: ' + e.message);
-    return;
+    toast('記録しました');
+    log(`1不合格: ${part}/${defect} / ${group_id}`);
+    resetFlow();
+  } catch(e) {
+    toast('送信失敗'); 
+    log('送信失敗: ' + e.message);
   }
-
-  // 送信成功後のUI後処理（安全）
-  toast('記録しました');
-  document.getElementById('preProductFailCard').classList.add('hidden');
-  $$('#partGrid1 .btn').forEach(x => x.classList.remove('active'));
-  $$('#defectChips1 .chip').forEach(x => x.classList.remove('active'));
 }
 
-
-/* ==== イベント ==== */
-function init(){
-  buildOperators();
-  buildModes();
-  buildParts('#partGrid1');
-  buildDefects('#defectChips1');
-
-  // 合否ボタン
-  $('#btnPass').onclick = ()=> sendSimple('pass');
-// 不合格ボタン：分岐を明示（2は送らない）
-$('#btnFail').onclick = () => {
-  if (!state.operator) return toast('検査者を選択');
-  if (!state.mode)     return toast('検査種別を選択');
-
-  switch (state.mode) {
-    case '1':
-      // 1: 出荷前製品 → 不合格詳細パネルを開く
-      $('#preProductFailCard').classList.remove('hidden');
-      break;
-    case '2':
-      // 2: 出荷前修理 → ここでは送信しない（分岐UI未実装なら止める）
-      // 分岐UIがあるなら: $('#branchCard').classList.remove('hidden');
-      toast('モード2は分岐UI未実装（送信しません）');
-      break;
-    default:
-      // 3/4: 単発で不合格を即送信
-      sendSimple('fail');
-  }
-};
-
+function addLoc() {
+  const {position, side, part, defect} = state.pre2;
+  if(!part) return toast('水没箇所（部位）を選択');
+  if(!defect) return toast('不良種別を選択');
+  
+  state.pre2.locs.push({position, side, part, defect});
+  renderLocPreview();
+  clearPre2Selection();
+  updateSendPre2Button();
 }
 
-if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',init); } else { init(); }
+function clearPre2Selection() {
+  state.pre2.position = ''; 
+  state.pre2.side = ''; 
+  state.pre2.part = ''; 
+  state.pre2.defect = '';
+  document.querySelectorAll('#posChips2 .chip').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('#sideChips2 .chip').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('#partGrid2 .btn').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('#defectChips2 .chip').forEach(x => x.classList.remove('active'));
+}
+
+function removeLoc(index) {
+  if(index >= 0 && index < state.pre2.locs.length) {
+    state.pre2.locs.splice(index, 1);
+    renderLocPreview();
+    updateSendPre2Button();
+  }
+}
+
+function renderLocPreview() {
+  const box = $('#locPreview'); 
+  box.innerHTML = '';
+  
+  state.pre2.locs.forEach((loc, i) => {
+    const container = document.createElement('div');
+    container.className = 'loc-item';
+    
+    const tag = document.createElement('span');
+    tag.className = 'chip active';
+    tag.textContent = `#${i + 1} ${(loc.position || '')}/${(loc.side || '')} ${loc.part} / ${loc.defect}`;
+    
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove-btn';
+    removeBtn.textContent = '削除';
+    removeBtn.onclick = () => removeLoc(i);
+    
+    container.appendChild(tag);
+    container.appendChild(removeBtn);
+    box.appendChild(container);
+  });
+}
+
+function updateSendPre2Button() {
+  const sendBtn = $('#btnSendPre2');
+  if(sendBtn) sendBtn.disabled = state.pre2.locs.length === 0;
+}
+
+async function sendPre2() {
+  if(!state.operator || !state.mode) return toast('検査者/種別を選択');
+  if(!debounceSendGuard()) return;
+  if(!state.pre2.inqNo || !/^A?\d{6}$/.test(state.pre2.inqNo)) return toast('問い合わせNo.を確認');
+  if(state.pre2.locs.length === 0) return toast('箇所を1つ以上追加してください');
+
+  try {
+    const group_id = makeGroupId();
+    for(const [idx, loc] of state.pre2.locs.entries()) {
+      const params = {
+        k: CONFIG.KEY,
+        operator: state.operator,
+        mode: state.mode,
+        result: 'fail',
+        reason: 'same',
+        inquiry_no: state.pre2.inqNo,
+        index: String(idx + 1),
+        position: loc.position,
+        side: loc.side,
+        part: loc.part,
+        detail: loc.defect,
+        qty: '1',
+        group_id,
+        fail_seq: String(idx + 1)
+      };
+      await send(params);
+    }
+    toast('記録しました');
+    log(`2同箇所 不合格 ${state.pre2.locs.length}件 / ${group_id}`);
+    resetFlow();
+  } catch(e) {
+    toast('送信失敗'); 
+    log('送信失敗: ' + e.message);
+  }
+}
+
+// ===== フロー制御 =====
+function resetFlow() {
+  $('#branchCard').classList.add('hidden');
+  $('#preProductFailCard').classList.add('hidden');
+  $('#preRepairSameCard').classList.add('hidden');
+  state.result = null; 
+  state.branch = null; 
+  resetDetails();
+}
+
+function resetDetails() {
+  state.pre1 = { mfNo:'', prodName:'', position:'', side:'', part:'', defect:'' };
+  state.pre2 = { inqNo:'', position:'', side:'', part:'', defect:'', locs:[] };
+  
+  // フォームのリセット
+  $('#mfNo').value = ''; 
+  $('#prodName').value = '';
+  $('#inqNo').value = ''; 
+  
+  // 選択状態のリセット
+  $('.chip').forEach(x => x.classList.remove('active'));
+  $('.btn').forEach(x => x.classList.remove('active'));
+  
+  $('#locPreview').innerHTML = '';
+  updateSendPre2Button();
+}
+
+function handlePass() { 
+  sendSimpleRecord('pass'); 
+}
+
+function handleFail() {
+  if(state.mode === '1') {
+    $('#preProductFailCard').classList.remove('hidden');
+  } else if(state.mode === '2') {
+    $('#branchCard').classList.remove('hidden');
+  } else if(state.mode === '3' || state.mode === '4') {
+    sendSimpleRecord('fail');
+  }
+}
+
+function chooseBranch(which) {
+  state.branch = which; 
+  ['btnSame', 'btnDiff', 'btnComplex'].forEach(id => $('#' + id).classList.remove('active'));
+  
+  if(which === 'same') {
+    $('#btnSame').classList.add('active');
+    $('#btnBranchSend').classList.add('hidden');
+    $('#preRepairSameCard').classList.remove('hidden');
+  } else {
+    if(which === 'diff') $('#btnDiff').classList.add('active');
+    if(which === 'complex') $('#btnComplex').classList.add('active');
+    $('#btnBranchSend').classList.remove('hidden');
+    $('#preRepairSameCard').classList.add('hidden');
+  }
+}
+
+async function sendBranch() {
+  if(!state.operator || !state.mode || !state.branch) return toast('条件不足');
+  if(!debounceSendGuard()) return;
+
+  const group_id = makeGroupId();
+  const params = {
+    k: CONFIG.KEY,
+    operator: state.operator,
+    mode: state.mode,
+    result: 'fail',
+    reason: state.branch,
+    qty: '1',
+    group_id,
+    fail_seq: '1'
+  };
+
+  try {
+    await send(params);
+    toast('記録しました');
+    log(`2不合格: ${state.branch} / ${group_id}`);
+    try {
+      resetFlow();
+    } catch(resetError) {
+      console.warn('リセット処理でエラー:', resetError);
+    }
+  } catch(e) {
+    toast('送信失敗'); 
+    log('送信失敗: ' + e.message);
+  }
+}
+
+// ===== 初期化 =====
+function init() {
+  try {
+    buildOperators();
+    buildModes();
+    buildParts('#partGrid1'); 
+    buildDefects('#defectChips1'); 
+    wireToggles('#posChips', '#sideChips', 'pre1');
+    buildParts('#partGrid2'); 
+    buildDefects('#defectChips2'); 
+    wireToggles('#posChips2', '#sideChips2', 'pre2');
+
+    // イベントリスナー（要素の存在チェック付き）
+    const mfNoInput = $('#mfNo');
+    const prodNameInput = $('#prodName');
+    const inqNoInput = $('#inqNo');
+    const btnPass = $('#btnPass');
+    const btnFail = $('#btnFail');
+    const btnSame = $('#btnSame');
+    const btnDiff = $('#btnDiff');
+    const btnComplex = $('#btnComplex');
+    const btnBranchSend = $('#btnBranchSend');
+    const btnSendPre1 = $('#btnSendPre1');
+    const btnAddLoc = $('#btnAddLoc');
+    const btnSendPre2 = $('#btnSendPre2');
+
+    if(mfNoInput) mfNoInput.addEventListener('input', e => state.pre1.mfNo = e.target.value.trim());
+    if(prodNameInput) prodNameInput.addEventListener('input', e => state.pre1.prodName = e.target.value.trim());
+    if(inqNoInput) inqNoInput.addEventListener('input', e => state.pre2.inqNo = e.target.value.trim().toUpperCase());
+
+    if(btnPass) btnPass.onclick = handlePass;
+    if(btnFail) btnFail.onclick = handleFail;
+
+    if(btnSame) btnSame.onclick = () => chooseBranch('same');
+    if(btnDiff) btnDiff.onclick = () => chooseBranch('diff');
+    if(btnComplex) btnComplex.onclick = () => chooseBranch('complex');
+    if(btnBranchSend) btnBranchSend.onclick = sendBranch;
+
+    if(btnSendPre1) btnSendPre1.onclick = sendPre1;
+    if(btnAddLoc) btnAddLoc.onclick = addLoc;
+    if(btnSendPre2) btnSendPre2.onclick = sendPre2;
+    
+    // 初期状態設定
+    updateSendPre2Button();
+  } catch(error) {
+    console.error('初期化エラー:', error);
+  }
+}
+
+// 確実な初期化
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
 </script>
-
 </body>
 </html>
