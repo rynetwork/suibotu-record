@@ -192,7 +192,7 @@ const CONFIG = {
   // ★GAS側 CONF.KEY と一致させる
   KEY: "KEY_2025_SUIKEN",
 
-  OPERATORS:[{key:'matsukawa',label:'松川'},{key:'chiba',label:'千葉'},{key:'takahashi',label:'高橋'}],
+  OPERATORS:[{key:'松川(将)',label:'松川'},{key:'千葉(英)',label:'千葉'},{key:'高橋(未)',label:'高橋'}],
   MODES:[{key:'1',label:'1 出荷前製品'},{key:'2',label:'2 出荷前修理品'},{key:'3',label:'3 初回修理品'},{key:'4',label:'4 初回修理品 裏検査'}],
   PARTS:[{value:'アンクル',label:'アンクル'},{value:'腕',label:'腕(ウデ)'},{value:'肩',label:'肩(カタ)'},{value:'グローブ',label:'グローブ'},{value:'腰',label:'腰(コシ)'},{value:'背中',label:'背中(セナカ)'},{value:'袖口',label:'袖口(ソデグチ)'},{value:'ソックス部ジョイント',label:'ソックス部ジョイント'},{value:'ソックス部本体',label:'ソックス部本体'},{value:'スネ',label:'スネ'},{value:'尻',label:'尻(シリ)'},{value:'胸',label:'胸(ムネ)'},{value:'ネック',label:'ネック'},{value:'膝上',label:'膝上(ヒザウエ)'},{value:'膝裏',label:'膝裏(ヒザウラ)'},{value:'腹',label:'腹(ハラ)'},{value:'パッド',label:'パッド'},{value:'ファスナー部',label:'ファスナー部'},{value:'フクラハギ',label:'フクラハギ'},{value:'前股',label:'前股(マエマタ)'},{value:'後ろ股',label:'後ろ股(ウシロマタ)'},{value:'腿',label:'腿(モモ)'},{value:'腿裏',label:'腿裏(モモウラ)'},{value:'脇',label:'脇(ワキ)'},{value:'リスト',label:'リスト'}],
   DEFECTS:[{key:'pinhole',label:'ピンホール'},{key:'seam',label:'接合部'},{key:'tape',label:'テープ'}],
@@ -310,40 +310,44 @@ async function sendSimple(result){
   }catch(e){ toast('送信失敗: '+e.message); }
 }
 
-async function sendPre1(){ // 出荷前製品の不合格詳細（部位＋不良）
-  if(!state.operator) return toast('検査者を選択');
-  if(state.mode!=='1') return toast('種別を「1 出荷前製品」にして下さい');
-  if(!guard()) return;
+// 出荷前製品の不合格（部位＋不良）送信
+async function sendPre1(){
+  if (!state.operator) return toast('検査者を選択');
+  if (state.mode !== '1') return toast('種別を「1 出荷前製品」にして下さい');
+  if (!guard()) return;  // 2秒の連打ガード
 
-  const partBtn = $$('#partGrid1 .btn.active')[0];
+  const partBtn    = $$('#partGrid1 .btn.active')[0];
   const defectChip = $$('#defectChips1 .chip.active')[0];
-  if(!partBtn) return toast('水没箇所（部位）を選択');
-  if(!defectChip) return toast('不良種別を選択');
+  if (!partBtn)    return toast('水没箇所（部位）を選択');
+  if (!defectChip) return toast('不良種別を選択');
 
   const params = {
     k: CONFIG.KEY,
     operator: state.operator,
     mode: state.mode,
     result: 'fail',
-    part: partBtn.dataset.value,   // ★記録は漢字のみ
-    detail: defectChip.dataset.value,
+    part:   partBtn.dataset.value,      // 記録は漢字のみ
+    detail: defectChip.dataset.value,   // 'pinhole' | 'seam' | 'tape'
     qty: '1',
     group_id: makeGroupId(),
     fail_seq: '1'
   };
-try {
-  // ここは通信だけ
-  await send(params);
-} catch (e) {
-  toast('送信失敗'); log('送信失敗: ' + e.message);
-  return; // 失敗時は後続UI処理に進まない
-}
-// ←ここからUI後処理（ログ/リセット等）
-toast('記録しました');
-log(`2同箇所 不合格 ${state.pre2.locs.length}件 / ${group_id}`);
-resetDetails();
 
+  try {
+    // 通信だけ try/catch（ここで例外なら以降のUI処理をしない）
+    await send(params);
+  } catch (e) {
+    toast('送信失敗: ' + e.message);
+    return;
+  }
+
+  // 送信成功後のUI後処理（安全）
+  toast('記録しました');
+  document.getElementById('preProductFailCard').classList.add('hidden');
+  $$('#partGrid1 .btn').forEach(x => x.classList.remove('active'));
+  $$('#defectChips1 .chip').forEach(x => x.classList.remove('active'));
 }
+
 
 /* ==== イベント ==== */
 function init(){
@@ -354,16 +358,26 @@ function init(){
 
   // 合否ボタン
   $('#btnPass').onclick = ()=> sendSimple('pass');
-  $('#btnFail').onclick = ()=>{
-    if(state.mode==='1'){
+// 不合格ボタン：分岐を明示（2は送らない）
+$('#btnFail').onclick = () => {
+  if (!state.operator) return toast('検査者を選択');
+  if (!state.mode)     return toast('検査種別を選択');
+
+  switch (state.mode) {
+    case '1':
+      // 1: 出荷前製品 → 不合格詳細パネルを開く
       $('#preProductFailCard').classList.remove('hidden');
-    }else{
-      // 1以外は今回は「単発不合格」を即送信
+      break;
+    case '2':
+      // 2: 出荷前修理 → ここでは送信しない（分岐UI未実装なら止める）
+      // 分岐UIがあるなら: $('#branchCard').classList.remove('hidden');
+      toast('モード2は分岐UI未実装（送信しません）');
+      break;
+    default:
+      // 3/4: 単発で不合格を即送信
       sendSimple('fail');
-    }
-  };
-  $('#btnSendPre1').onclick = sendPre1;
-}
+  }
+};
 
 if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',init); } else { init(); }
 </script>
