@@ -567,19 +567,20 @@ function resetFlow() {
 function resetDetails() {
   state.pre1 = { mfNo:'', prodName:'', position:'', side:'', part:'', defect:'' };
   state.pre2 = { inqNo:'', position:'', side:'', part:'', defect:'', locs:[] };
-  
-  // フォームのリセット
-  $('#mfNo').value = ''; 
-  $('#prodName').value = '';
-  $('#inqNo').value = ''; 
-  
-  // 選択状態のリセット
-  $('.chip').forEach(x => x.classList.remove('active'));
-  $('.btn').forEach(x => x.classList.remove('active'));
-  
-  $('#locPreview').innerHTML = '';
+
+  // フォームのリセット（要素がある時だけ）
+  const mf = $('#mfNo');      if (mf) mf.value = '';
+  const pn = $('#prodName');  if (pn) pn.value = '';
+  const iq = $('#inqNo');     if (iq) iq.value = '';
+
+  // ★複数要素は $$ で取得して forEach
+  $$('.chip').forEach(x => x.classList.remove('active'));
+  $$('.btn').forEach(x => x.classList.remove('active'));
+
+  const lp = $('#locPreview'); if (lp) lp.innerHTML = '';
   updateSendPre2Button();
 }
+
 
 function handlePass() { 
   sendSimpleRecord('pass'); 
