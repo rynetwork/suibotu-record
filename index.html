@@ -37,6 +37,7 @@ header h1{font-size:var(--font-size-large);margin:0 8px 0 0;font-weight:800;lett
 .log{margin-top:14px;font-size:16px;color:var(--muted);max-height:180px;overflow:auto;white-space:pre-wrap}
 .toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(2,6,23,.95);border:2px solid #ef4444;color:#fff;padding:20px 24px;border-radius:16px;box-shadow:0 12px 26px rgba(0,0,0,.45);opacity:0;transition:.3s;font-size:var(--font-size-large);font-weight:800;text-align:center;z-index:1000}
 .toast.show{opacity:1}
+.toast{ pointer-events:none; }
 input[type="text"], input[type="number"], input[type="search"]{background:#0b1222;border:1px solid #233046;color:#fff;border-radius:12px;padding:12px 14px;font-size:var(--font-size-base)}
 .divider{height:14px}
 .hidden{display:none}
@@ -578,7 +579,10 @@ function resetDetails() {
   $$('.btn').forEach(x => x.classList.remove('active'));
 
   const lp = $('#locPreview'); if (lp) lp.innerHTML = '';
-  updateSendPre2Button();
+  updateSendPre2Button && updateSendPre2Button();
+
+  // ★今の state に合わせて選択表示を戻す
+  refreshActiveUI();
 }
 
 
@@ -698,6 +702,23 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }
+
+function refreshActiveUI(){
+  // 検査者
+  const opKeys = CONFIG.OPERATORS.map(o => o.key);
+  $$('#operatorBar .btn').forEach((el, i) => {
+    const key = opKeys[i];
+    el.classList.toggle('active', state.operator === key);
+  });
+
+  // 検査種別
+  const modeKeys = CONFIG.MODES.map(m => m.key);
+  $$('#modeGrid .btn').forEach((el, i) => {
+    const key = modeKeys[i];
+    el.classList.toggle('active', state.mode === key);
+  });
+}
+
 </script>
 </body>
 </html>
