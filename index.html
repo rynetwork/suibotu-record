@@ -166,11 +166,17 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
 <!-- 2:出荷前修理 不合格=同箇所 詳細（複数箇所の繰り返し） -->
 <section class="card hidden" id="preRepairSameCard" aria-label="出荷前修理 同箇所 詳細">
   <div class="section-title">出荷前修理・同箇所 詳細入力</div>
-  <div class="row">
-    <label class="pill">問い合わせNo.
-      <input id="inqNo" type="text" placeholder="例) A123456 または 123456" inputmode="latin-prose" pattern="A?[0-9]{6}" />
-    </label>
-  </div>
+<div class="card" style="margin:12px 0; padding:24px; text-align:center; background:#222; border:2px solid #4ade80;">
+  <div class="section-title" style="font-size:24px; margin-bottom:12px; color:#4ade80;">問い合わせNo.（必須）</div>
+  <input id="inqNo" type="text"
+         placeholder="A123456 または 123456"
+         inputmode="latin-prose"
+         pattern="A?[0-9]{6}"
+         style="font-size:28px; padding:12px 16px; width:90%; max-width:400px;
+                border-radius:8px; border:none; text-align:center;
+                background:#0b1222; color:#fff;" />
+</div>
+
   <div class="row" style="margin-top:8px">
     <div class="chips" id="posChips2">
       <span class="chip" data-position="front">前</span>
@@ -775,7 +781,12 @@ if(btnFail) btnFail.onclick = handleFail;
     if(btnPass) btnPass.onclick = handlePass;
     if(btnFail) btnFail.onclick = handleFail;
 
-    if(btnSame) btnSame.onclick = () => chooseBranch('same');
+if(btnSame) btnSame.onclick = () => {
+  chooseBranch('same');
+  const sameCard = document.getElementById('preRepairSameCard');
+  sameCard.classList.remove('hidden');
+  scrollIntoViewSmooth(sameCard, 600); // ★ スルッとスクロール
+};
     if(btnDiff) btnDiff.onclick = () => chooseBranch('diff');
     if(btnComplex) btnComplex.onclick = () => chooseBranch('complex');
     if(btnBranchSend) btnBranchSend.onclick = sendBranch;
