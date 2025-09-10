@@ -691,14 +691,15 @@ function getScrollableParent(el){
 function easeInOutCubic(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3)/2; }
 
 // 目的要素まで“すーっ”とスクロール
-function scrollIntoViewSmooth(el, duration = 500){ // duration: ミリ秒
+function scrollIntoViewSmooth(el, duration = 500, offset = 0){
   if(!el) return;
   const parent = getScrollableParent(el);
   const parentRect = parent.getBoundingClientRect();
   const elRect = el.getBoundingClientRect();
 
-  // 親のスクロール基準での目標位置（上にちょい余白を残すなら -16 など調整）
-  const target = parent.scrollTop + (elRect.top - parentRect.top);
+  // 親のスクロール基準での目標位置（上にちょい余白を残すなら -16 など調整）//   
+  const target = parent.scrollTop + (elRect.top - parentRect.top) - offset;
+
 
   const start = parent.scrollTop;
   const delta = target - start;
@@ -784,8 +785,8 @@ if(btnFail) btnFail.onclick = handleFail;
 if(btnSame) btnSame.onclick = () => {
   chooseBranch('same');
   const sameCard = document.getElementById('preRepairSameCard');
-  sameCard.classList.remove('hidden');
-  scrollIntoViewSmooth(sameCard, 600); // ★ スルッとスクロール
+  const inq = document.getElementById('inqNo');
+  scrollIntoViewSmooth(inq, 600, 80); // ★ スルッとスクロール
 };
     if(btnDiff) btnDiff.onclick = () => chooseBranch('diff');
     if(btnComplex) btnComplex.onclick = () => chooseBranch('complex');
