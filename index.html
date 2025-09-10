@@ -796,9 +796,15 @@ function handleFail(){
 if(btnSame) btnSame.onclick = () => {
   chooseBranch('same');
   const sameCard = document.getElementById('preRepairSameCard');
-  const inq      = document.getElementById('inqNo');
-  showAndScroll(sameCard, inq, 120, 600); // ← 問い合わせNo.にピタッと止める
+  sameCard.classList.remove('hidden');
+
+  // 問い合わせNo.入力欄をターゲットにスクロール
+  const inq = document.getElementById('inqNo');
+  if (inq) {
+    showAndScroll(sameCard, inq, 150, 600); 
+  }
 };
+
 
 
     if(btnDiff) btnDiff.onclick = () => chooseBranch('diff');
