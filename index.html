@@ -715,6 +715,19 @@ function scrollIntoViewSmooth(el, duration = 500, offset = 0){
   requestAnimationFrame(frame);
 }
 
+// 要素を表示してから、次フレームで目的位置へスムーススクロール
+function showAndScroll(el, targetEl = null, offset = 80, duration = 600){
+  if(!el) return;
+  el.classList.remove('hidden');
+  // レイアウト確定を待つ（ダブル rAF）
+  requestAnimationFrame(()=> {
+    requestAnimationFrame(()=> {
+      scrollIntoViewSmooth(targetEl || el, duration, offset);
+    });
+  });
+}
+
+
 
 // ===== 初期化 =====
 function init() {
@@ -749,31 +762,29 @@ wirePressFeedback('#btnFail');
     const btnSendPre2 = $('#btnSendPre2');
 
 // 不合格：modeごとの分岐（スクロール込み）
+// 不合格：modeごとの分岐（スムーススクロール）
 function handleFail(){
   if (!state.operator) return toast('検査者を選択');
   if (!state.mode)     return toast('検査種別を選択');
 
   switch (state.mode) {
-    case '1': { // 出荷前製品 → 詳細入力
+    case '1': { // 出荷前製品 → 詳細入力カードへ
       const card1 = document.getElementById('preProductFailCard');
-      card1.classList.remove('hidden');
-      scrollIntoViewSmooth(card1);
+      showAndScroll(card1, card1, 80, 600);
       break;
     }
-    case '2': { // 出荷前修理 → 分岐UI
+    case '2': { // 出荷前修理 → 分岐カードへ
       const branch = document.getElementById('branchCard');
-      branch.classList.remove('hidden');
-      scrollIntoViewSmooth(branch);
+      showAndScroll(branch, branch, 80, 600);
       break;
     }
-    default: // 3/4 → 即送信
+    default: { // 3/4 → 即送信
       sendSimpleRecord('fail');
+      break;
+    }
+  }
 }
 
-// ★ここで1回だけ紐付け（重複禁止）
-if(btnFail) btnFail.onclick = handleFail;
-
-}
 
     if(mfNoInput) mfNoInput.addEventListener('input', e => state.pre1.mfNo = e.target.value.trim());
     if(prodNameInput) prodNameInput.addEventListener('input', e => state.pre1.prodName = e.target.value.trim());
@@ -786,8 +797,9 @@ if(btnSame) btnSame.onclick = () => {
   chooseBranch('same');
   const sameCard = document.getElementById('preRepairSameCard');
   const inq = document.getElementById('inqNo');
-  scrollIntoViewSmooth(inq, 600, -150); // ★ スルッとスクロール
+  showAndScroll(sameCard, inq, 120, 600); // ← 問い合わせNo.にピタッと
 };
+
     if(btnDiff) btnDiff.onclick = () => chooseBranch('diff');
     if(btnComplex) btnComplex.onclick = () => chooseBranch('complex');
     if(btnBranchSend) btnBranchSend.onclick = sendBranch;
