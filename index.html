@@ -66,6 +66,8 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
   font-size: 14px;
   cursor: pointer;
 }
+.btn{ -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+
 </style>
 </head>
 <body>
@@ -651,20 +653,25 @@ async function sendBranch() {
   }
 }
 
+function wirePressFeedback(selector){
+  const el = document.querySelector(selector);
+  if(!el) return;
+  const onDown = ()=> el.classList.add('active');
+  const onUp   = ()=> el.classList.remove('active');
+  el.addEventListener('pointerdown',  onDown);
+  el.addEventListener('pointerup',    onUp);
+  el.addEventListener('pointercancel',onUp);
+  el.addEventListener('pointerleave', onUp);
+}
+
+
 // ===== 初期化 =====
 function init() {
 
-// 合格・不合格ボタンに押下時のエフェクトを追加
-['#btnPass', '#btnFail'].forEach(sel => {
-  const btn = document.querySelector(sel);
-  if (!btn) return;
-  btn.addEventListener('mousedown', () => btn.classList.add('active'));
-  btn.addEventListener('mouseup',   () => btn.classList.remove('active'));
-  btn.addEventListener('mouseleave',() => btn.classList.remove('active'));
-  // タッチ操作でも効くように
-  btn.addEventListener('touchstart', () => btn.classList.add('active'));
-  btn.addEventListener('touchend',   () => btn.classList.remove('active'));
-});
+// 合格・不合格の押下エフェクト
+wirePressFeedback('#btnPass');
+wirePressFeedback('#btnFail');
+
 
   try {
     buildOperators();
