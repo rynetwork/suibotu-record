@@ -187,11 +187,18 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
 <section class="card hidden" id="preProductFailCard" aria-label="出荷前製品・不合格 詳細">
   <div class="section-title">出荷前製品・不合格 詳細</div>
   <div class="row">
+    <!-- 生産ライン（Mode1 不合格時） -->
+<div class="section-title" style="margin-top:10px">生産ライン</div>
+<div class="row" id="lineChips1">
+  <span class="chip" data-line="内製1">内製1</span>
+  <span class="chip" data-line="内製2">内製2</span>
+  <span class="chip" data-line="ファンクリエーション">ファンクリエーション</span>
+</div>
     <label class="pill">製造No.
       <input id="mfNo" type="text" placeholder="例) 123456" inputmode="numeric" pattern="[0-9]{6}" />
     </label>
     <label class="pill">品名（音声入力可）
-      <input id="prodName" type="text" placeholder="例) 5×4 セミドライ" />
+      <input id="prodName" type="text" placeholder="例) クロコドライ" />
     </label>
   </div>
 <!-- 前・後・左・右（mode=1用） -->
@@ -346,7 +353,7 @@ const state = {
   lastSentAt: 0,
   result: null,
   branch: null,
-  pre1: { mfNo:'', prodName:'', position:'', side:'', part:'', defect:'' },
+  pre1: { mfNo:'', prodName:'', line:'', position:'', side:'', part:'', defect:'' },
   pre2: { inqNo:'', position:'', side:'', part:'', defect:'', locs:[] }
 };
 
@@ -541,12 +548,13 @@ async function sendPre1() {
     result: 'fail',
     mf_no: mfNo,
     product_name: prodName,
+    line: state.pre1.line,     // ★ 追加（空でも送られる）
     position, 
     side,
     part,
     detail: defect,
     qty: '1',
-    group_id,
+    group_id: makeGroupId(),
     fail_seq: '1'
   };
 
@@ -850,6 +858,8 @@ if (btnPrefillA) {
     const btnAddLoc = $('#btnAddLoc');
     const btnSendPre2 = $('#btnSendPre2');
 
+bindLine('#lineChips1', 'pre1');
+
 // 不合格：modeごとの分岐（スクロール込み）
 // 不合格：modeごとの分岐（スムーススクロール）
 function handleFail(){
@@ -938,6 +948,26 @@ function refreshActiveUI(){
     el.classList.toggle('active', state.mode === key);
   });
 }
+
+function bindLine(selector, stateKey){
+  const box = document.querySelector(selector);
+  if(!box) return;
+  box.querySelectorAll('.chip').forEach(ch=>{
+    ch.addEventListener('click', ()=>{
+      const val = ch.dataset.line;
+      // 2回押しで解除（不要ならトグル外して常に選択でもOK）
+      if (state[stateKey].line === val) {
+        state[stateKey].line = '';
+        ch.classList.remove('active');
+      } else {
+        state[stateKey].line = val;
+        box.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
+        ch.classList.add('active');
+      }
+    });
+  });
+}
+
 
 </script>
 </body>
