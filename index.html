@@ -51,6 +51,30 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
 #operatorBar{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%}
 #operatorBar .btn{width:100%;text-align:center}
 
+/* 前後左右の大ボタン */
+.dir-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin: 12px 0;
+}
+.dir-btn {
+  border: 1px solid #233046;
+  background: #0b1222;
+  color: #fff;
+  border-radius: 9999px; /* 丸っこい */
+  padding: 22px 0;
+  font-size: 26px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.dir-btn.active {
+  border-color: #2aa6c8;
+  background: #0e1a2c;
+}
+
+
+
 /* ロケーション削除ボタンスタイル */
 .loc-item {
   display: flex;
@@ -146,16 +170,14 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
       <input id="prodName" type="text" placeholder="例) 5×4 セミドライ" />
     </label>
   </div>
-  <div class="row" style="margin-top:8px">
-    <div class="chips" id="posChips">
-      <span class="chip" data-position="front">前</span>
-      <span class="chip" data-position="back">後</span>
-    </div>
-    <div class="chips" id="sideChips">
-      <span class="chip" data-side="L">左</span>
-      <span class="chip" data-side="R">右</span>
-    </div>
-  </div>
+<!-- 前・後・左・右（mode=1用） -->
+<div class="dir-grid" id="dirGrid1">
+  <button class="dir-btn" data-kind="position" data-value="front">前</button>
+  <button class="dir-btn" data-kind="position" data-value="back">後</button>
+  <button class="dir-btn" data-kind="side"     data-value="L">左</button>
+  <button class="dir-btn" data-kind="side"     data-value="R">右</button>
+</div>
+
   <div class="section-title" style="margin-top:10px">水没箇所（必須）</div>
   <div class="grid" id="partGrid1"></div>
   <div class="section-title" style="margin-top:10px">不良種別（必須）</div>
@@ -181,16 +203,14 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
                 background:#0b1222; color:#fff;" />
 </div>
 
-  <div class="row" style="margin-top:8px">
-    <div class="chips" id="posChips2">
-      <span class="chip" data-position="front">前</span>
-      <span class="chip" data-position="back">後</span>
-    </div>
-    <div class="chips" id="sideChips2">
-      <span class="chip" data-side="L">左</span>
-      <span class="chip" data-side="R">右</span>
-    </div>
-  </div>
+<!-- 前・後・左・右（mode=2用） -->
+<div class="dir-grid" id="dirGrid2">
+  <button class="dir-btn" data-kind="position" data-value="front">前</button>
+  <button class="dir-btn" data-kind="position" data-value="back">後</button>
+  <button class="dir-btn" data-kind="side"     data-value="L">左</button>
+  <button class="dir-btn" data-kind="side"     data-value="R">右</button>
+</div>
+
   <div class="section-title" style="margin-top:10px">水没箇所（必須）</div>
   <div class="grid" id="partGrid2"></div>
   <div class="section-title" style="margin-top:10px">不良種別（必須）</div>
@@ -259,6 +279,30 @@ const CONFIG = {
   ],
   SEND_DEBOUNCE_MS: 2000
 };
+
+
+function bindDirGrid(gridSelector, stateKey){
+  const grid = document.querySelector(gridSelector);
+  if(!grid) return;
+  grid.querySelectorAll('.dir-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const kind = btn.dataset.kind;     // 'position' or 'side'
+      const val  = btn.dataset.value;    // 'front'|'back' / 'L'|'R'
+      if(kind === 'position'){
+        const cur = state[stateKey].position;
+        state[stateKey].position = (cur === val) ? '' : val; // 2回押しで解除
+        grid.querySelectorAll('.dir-btn[data-kind="position"]')
+            .forEach(b=>b.classList.toggle('active', state[stateKey].position === b.dataset.value));
+      }else{
+        const cur = state[stateKey].side;
+        state[stateKey].side = (cur === val) ? '' : val;
+        grid.querySelectorAll('.dir-btn[data-kind="side"]')
+            .forEach(b=>b.classList.toggle('active', state[stateKey].side === b.dataset.value));
+      }
+    });
+  });
+}
+
 
 // ===== 状態 =====
 const $ = (s) => document.querySelector(s);
@@ -815,6 +859,11 @@ if(btnSame) btnSame.onclick = () => {
     if(btnAddLoc) btnAddLoc.onclick = addLoc;
     if(btnSendPre2) btnSendPre2.onclick = sendPre2;
     
+
+ bindDirGrid('#dirGrid1', 'pre1');
+  bindDirGrid('#dirGrid2', 'pre2');
+
+  
     // 初期状態設定
     updateSendPre2Button();
   } catch(error) {
