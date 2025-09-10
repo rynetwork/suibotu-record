@@ -606,15 +606,6 @@ function handlePass() {
   sendSimpleRecord('pass'); 
 }
 
-function handleFail() {
-  if(state.mode === '1') {
-    $('#preProductFailCard').classList.remove('hidden');
-  } else if(state.mode === '2') {
-    $('#branchCard').classList.remove('hidden');
-  } else if(state.mode === '3' || state.mode === '4') {
-    sendSimpleRecord('fail');
-  }
-}
 
 function chooseBranch(which) {
   state.branch = which; 
@@ -677,6 +668,11 @@ function wirePressFeedback(selector){
 // iOSで :active を有効にするおまじない（必須）
 document.addEventListener('touchstart', ()=>{}, {passive:true});
 
+function scrollIntoViewSmooth(el){
+  if(!el) return;
+  el.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
 
 
 // ===== 初期化 =====
@@ -710,6 +706,33 @@ wirePressFeedback('#btnFail');
     const btnSendPre1 = $('#btnSendPre1');
     const btnAddLoc = $('#btnAddLoc');
     const btnSendPre2 = $('#btnSendPre2');
+
+// 不合格：modeごとの分岐（スクロール込み）
+function handleFail(){
+  if (!state.operator) return toast('検査者を選択');
+  if (!state.mode)     return toast('検査種別を選択');
+
+  switch (state.mode) {
+    case '1': { // 出荷前製品 → 詳細入力
+      const card1 = document.getElementById('preProductFailCard');
+      card1.classList.remove('hidden');
+      scrollIntoViewSmooth(card1);
+      break;
+    }
+    case '2': { // 出荷前修理 → 分岐UI
+      const branch = document.getElementById('branchCard');
+      branch.classList.remove('hidden');
+      scrollIntoViewSmooth(branch);
+      break;
+    }
+    default: // 3/4 → 即送信
+      sendSimpleRecord('fail');
+}
+
+// ★ここで1回だけ紐付け（重複禁止）
+if(btnFail) btnFail.onclick = handleFail;
+
+}
 
     if(mfNoInput) mfNoInput.addEventListener('input', e => state.pre1.mfNo = e.target.value.trim());
     if(prodNameInput) prodNameInput.addEventListener('input', e => state.pre1.prodName = e.target.value.trim());
