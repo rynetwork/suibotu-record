@@ -77,6 +77,10 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
 /* iOS向けのタップ最適化（任意） */
 .btn { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 
+/* 問い合わせNo.を画面上端から少し下に止める */
+#inqNo { scroll-margin-top: 120px; }
+
+
 
 </style>
 </head>
@@ -690,41 +694,37 @@ function getScrollableParent(el){
 // イージング（加速→減速）
 function easeInOutCubic(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3)/2; }
 
-// 目的要素まで“すーっ”とスクロール
-function scrollIntoViewSmooth(el, duration = 500, offset = 0){
+// ウィンドウ基準で“するっ”とスクロール（offset: 上に残す余白px）
+function scrollIntoViewSmooth(el, duration = 600, offset = 0){
   if(!el) return;
-  const parent = getScrollableParent(el);
-  const parentRect = parent.getBoundingClientRect();
-  const elRect = el.getBoundingClientRect();
+  const startY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+  const rect   = el.getBoundingClientRect();
+  const targetY = startY + rect.top - offset;
 
-  // 親のスクロール基準での目標位置（上にちょい余白を残すなら -16 など調整）//   
-  const target = parent.scrollTop + (elRect.top - parentRect.top) - offset;
+  const delta = targetY - startY;
+  if (Math.abs(delta) < 2) return;
 
-
-  const start = parent.scrollTop;
-  const delta = target - start;
-  if (Math.abs(delta) < 2) return; // すでに見えている
-
-  const startTime = performance.now();
+  const t0 = performance.now();
   function frame(now){
-    const t = Math.min(1, (now - startTime) / duration);
+    const t = Math.min(1, (now - t0) / duration);
     const eased = easeInOutCubic(t);
-    parent.scrollTop = start + delta * eased;
+    window.scrollTo(0, startY + delta * eased);
     if (t < 1) requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
 }
 
-// 要素を表示してから、次フレームで目的位置へスムーススクロール
-function showAndScroll(el, targetEl = null, offset = 80, duration = 600){
-  if(!el) return;
-  el.classList.remove('hidden');
-  // レイアウト確定を待つ（ダブル rAF）
-  requestAnimationFrame(()=> {
-    requestAnimationFrame(()=> {
-      scrollIntoViewSmooth(targetEl || el, duration, offset);
-    });
-  });
+// 要素を表示→次フレームでターゲットへ確実にスクロール（入力欄ならフォーカス）
+function showAndScroll(containerEl, targetEl = null, offset = 120, duration = 600){
+  if(!containerEl) return;
+  containerEl.classList.remove('hidden');
+  // レイアウト確定を2フレーム待つ
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    const el = targetEl || containerEl;
+    // iPadでキーボードを出す前に位置決めしたいので、preventScroll で先にフォーカスだけ
+    if (el.tagName === 'INPUT') { try{ el.focus({preventScroll:true}); }catch{} }
+    scrollIntoViewSmooth(el, duration, offset);
+  }));
 }
 
 
@@ -796,9 +796,10 @@ function handleFail(){
 if(btnSame) btnSame.onclick = () => {
   chooseBranch('same');
   const sameCard = document.getElementById('preRepairSameCard');
-  const inq = document.getElementById('inqNo');
-  showAndScroll(sameCard, inq, 120, 600); // ← 問い合わせNo.にピタッと
+  const inq      = document.getElementById('inqNo');
+  showAndScroll(sameCard, inq, 120, 600); // ← 問い合わせNo.にピタッと止める
 };
+
 
     if(btnDiff) btnDiff.onclick = () => chooseBranch('diff');
     if(btnComplex) btnComplex.onclick = () => chooseBranch('complex');
