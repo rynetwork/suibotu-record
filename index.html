@@ -51,29 +51,27 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
 #operatorBar{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;width:100%}
 #operatorBar .btn{width:100%;text-align:center}
 
-/* 前後左右の大ボタン */
-.dir-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-  margin: 12px 0;
+/* 前後左右の大ボタン（4分割・丸） */
+.dir-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+  margin:12px 0;
 }
-.dir-btn {
-  border: 1px solid #233046;
-  background: #0b1222;
-  color: #fff;
-  border-radius: 9999px; /* 丸っこい */
-  padding: 22px 0;
-  font-size: 26px;
-  font-weight: 800;
-  cursor: pointer;
+.dir-btn{
+  border:1px solid #233046;
+  background:#0b1222;
+  color:#fff;
+  border-radius:9999px;
+  /* ↓サイズを“確実に”上げる */
+  min-height: clamp(56px, 9vh, 88px);
+  padding: 0;                 /* 高さは min-height で管理 */
+  font-size: clamp(18px, 2.6vw, 28px);
+  font-weight:800;
+  cursor:pointer;
+  width:100%;
 }
-.dir-btn.active {
-  border-color: #2aa6c8;
-  background: #0e1a2c;
-}
-
-
+.dir-btn.active{ border-color:#2aa6c8; background:#0e1a2c; }
 
 /* ロケーション削除ボタンスタイル */
 .loc-item {
@@ -786,10 +784,8 @@ wirePressFeedback('#btnFail');
     buildModes();
     buildParts('#partGrid1'); 
     buildDefects('#defectChips1'); 
-    wireToggles('#posChips', '#sideChips', 'pre1');
     buildParts('#partGrid2'); 
     buildDefects('#defectChips2'); 
-    wireToggles('#posChips2', '#sideChips2', 'pre2');
 
     // イベントリスナー（要素の存在チェック付き）
     const mfNoInput = $('#mfNo');
@@ -863,7 +859,7 @@ if(btnSame) btnSame.onclick = () => {
  bindDirGrid('#dirGrid1', 'pre1');
   bindDirGrid('#dirGrid2', 'pre2');
 
-  
+
     // 初期状態設定
     updateSendPre2Button();
   } catch(error) {
