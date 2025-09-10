@@ -668,11 +668,45 @@ function wirePressFeedback(selector){
 // iOSで :active を有効にするおまじない（必須）
 document.addEventListener('touchstart', ()=>{}, {passive:true});
 
-function scrollIntoViewSmooth(el){
-  if(!el) return;
-  el.scrollIntoView({ behavior:'smooth', block:'start' });
+// スクロール親を探す
+function getScrollableParent(el){
+  let p = el.parentElement;
+  while (p) {
+    const style = getComputedStyle(p);
+    const canScroll = /(auto|scroll)/.test(style.overflowY) && p.scrollHeight > p.clientHeight;
+    if (canScroll) return p;
+    p = p.parentElement;
+  }
+  // なければドキュメントを使う
+  return document.scrollingElement || document.documentElement;
 }
 
+// イージング（加速→減速）
+function easeInOutCubic(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3)/2; }
+
+// 目的要素まで“すーっ”とスクロール
+function scrollIntoViewSmooth(el, duration = 500){ // duration: ミリ秒
+  if(!el) return;
+  const parent = getScrollableParent(el);
+  const parentRect = parent.getBoundingClientRect();
+  const elRect = el.getBoundingClientRect();
+
+  // 親のスクロール基準での目標位置（上にちょい余白を残すなら -16 など調整）
+  const target = parent.scrollTop + (elRect.top - parentRect.top);
+
+  const start = parent.scrollTop;
+  const delta = target - start;
+  if (Math.abs(delta) < 2) return; // すでに見えている
+
+  const startTime = performance.now();
+  function frame(now){
+    const t = Math.min(1, (now - startTime) / duration);
+    const eased = easeInOutCubic(t);
+    parent.scrollTop = start + delta * eased;
+    if (t < 1) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
 
 
 // ===== 初期化 =====
