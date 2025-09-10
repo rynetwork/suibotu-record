@@ -30,6 +30,19 @@ header h1{font-size:var(--font-size-large);margin:0 8px 0 0;font-weight:800;lett
   border-color: #60a5fa;
 }
 
+
+.inq-wrap{
+  display:flex; align-items:center; justify-content:center; gap:10px;
+}
+.a-btn{
+  min-width:64px; padding:12px 16px;
+  font-size:24px; font-weight:800; line-height:1;
+  border-radius:12px; border:1px solid #3b82f6;
+  background:#2563eb; color:#fff; cursor:pointer;
+}
+.a-btn:active{ transform:translateY(1px); }
+
+
 .btn.ok{background:#052e1a;border-color:#14532d}
 .btn.err{background:#3b0a0a;border-color:#7f1d1d}
 .pill{display:inline-flex;align-items:center;gap:8px;background:#0b1222;border:1px solid #233046;color:var(--ink);padding:12px 14px;border-radius:999px;font-size:var(--font-size-base)}
@@ -205,13 +218,20 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
   <div class="section-title">出荷前修理・同箇所 詳細入力</div>
 <div class="card" style="margin:12px 0; padding:24px; text-align:center; background:#222; border:2px solid #4ade80;">
   <div class="section-title" style="font-size:24px; margin-bottom:12px; color:#4ade80;">問い合わせNo.（必須）</div>
-  <input id="inqNo" type="text"
-         placeholder="A12345 または 123456"
-         inputmode="latin-prose"
-         style="font-size:28px; padding:12px 16px; width:90%; max-width:400px;
-                border-radius:8px; border:none; text-align:center;
-                background:#0b1222; color:#fff;" />
+
+  <!-- ここから置き換え -->
+  <div class="inq-wrap">
+    <button type="button" id="btnPrefillA" class="a-btn">A</button>
+    <input id="inqNo" type="text"
+           placeholder="例）A12345 または 123456"
+           inputmode="numeric"
+           style="font-size:28px; padding:12px 16px; width:90%; max-width:400px;
+                  border-radius:8px; border:none; text-align:center;
+                  background:#0b1222; color:#fff;" />
+  </div>
+  <!-- ここまで -->
 </div>
+
 
 <!-- 前・後・左・右（mode=2用） -->
 <div class="dir-grid" id="dirGrid2">
@@ -803,6 +823,23 @@ wirePressFeedback('#btnFail');
     const mfNoInput = $('#mfNo');
     const prodNameInput = $('#prodName');
     const inqNoInput = $('#inqNo');
+
+    const btnPrefillA = document.getElementById('btnPrefillA');
+if (btnPrefillA) {
+  btnPrefillA.onclick = () => {
+    const input = document.getElementById('inqNo');
+    if (!input) return;
+    // 先頭を必ず A1.../123... の形に（重複Aを避ける）
+    const raw = input.value.trim().toUpperCase();
+    input.value = raw.startsWith('A') ? raw : ('A' + raw.replace(/^A/, ''));
+    // フォーカス＆カーソル末尾へ
+    input.focus({ preventScroll: true });
+    try { const p = input.value.length; input.setSelectionRange(p, p); } catch {}
+    // state も即時同期（既存の input イベントがあればそれでOK）
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+}
+
     const btnPass = $('#btnPass');
     const btnFail = $('#btnFail');
     const btnSame = $('#btnSame');
