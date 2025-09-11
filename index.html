@@ -307,7 +307,7 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
 <script>
 // ===== 設定 =====
 const CONFIG = {
-  DEPLOY_URL: "https://script.google.com/macros/s/AKfycbwRU9pxGq_hbyL_DSVxsmP3EhpO2PsFlmNQNti8pF30HbbfMHCBwRM5eTJw6ziqxY0d/exec",
+  DEPLOY_URL: "https://script.google.com/macros/s/AKfycbxVeAl8kChys0Q6VhSR_BdD0TAGWpVxX0mcOxS-ThbedzOPfph2e5aucv5GwVI9wyRK/exec",
   KEY: "KEY_2025_SUIKEN",
   OPERATORS: [
     {key:'松川(将)', label:'松川'},
@@ -433,23 +433,27 @@ async function fetchSummary(date=ymdToday()){
   return json;
 }
 function renderSummary(data){
-  const toResultBadge = r => r==='pass' ? '合格' : (r==='fail'?'不合格':r);
+  const badge = r => r==='pass' ? '合格' : (r==='fail'?'不合格':r);
 
+  // 合計（group_idユニーク）
   $('#sumTotals').innerHTML =
-    `<div><b>今日の件数（group_idユニーク）</b>：${data.totals.groups}</div>`;
+    `<div><b>今日の件数</b>（group_idユニーク）：<b>${data.totals.groups}</b>　<span style="color:#94a3b8">行数:${data.totals.rows}</span></div>`;
 
+  // 検査者別
   const opHtml = (data.by_operator||[]).map(o=>
     `<li>${o.operator}：<b>${o.groups}</b>件</li>`
   ).join('') || '<li>—</li>';
   $('#sumByOp').innerHTML = `<div><b>検査者別</b></div><ul>${opHtml}</ul>`;
 
+  // 時系列（時刻・種別・合否・検査者）
   const tlHtml = (data.timeline||[]).map(t=>
-    `<li>${t.time}　${t.operator}　${toResultBadge(t.result)}</li>`
+    `<li>${t.time}　${t.mode}　${badge(t.result)}　${t.operator}</li>`
   ).join('') || '<li>—</li>';
   $('#sumTimeline').innerHTML = `<div><b>時間順の履歴</b></div><ul>${tlHtml}</ul>`;
 
   $('#sumUpdated').textContent = `更新: ${new Date(data.updatedAt).toLocaleString()}`;
 }
+
 async function openSummary(){
   try{
     const data = await fetchSummary();
