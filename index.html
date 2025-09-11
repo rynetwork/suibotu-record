@@ -128,6 +128,26 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
 /* 問い合わせNo.を画面上端から少し下に止める */
 #inqNo { scroll-margin-top: 120px; }
 
+.fab{
+  position:fixed; right:20px; bottom:20px; z-index:999;
+  background:#1f2937; color:#fff; border:1px solid #334155;
+  padding:14px 18px; border-radius:999px; font-weight:800; cursor:pointer;
+}
+.overlay{
+  position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:1000;
+  display:flex; align-items:center; justify-content:center;
+}
+.overlay.hidden{ display:none; }
+.overlay-inner{
+  width:min(900px,92vw); max-height:86vh; overflow:auto;
+  background:#0f172a; color:#e5e7eb; border-radius:16px; padding:16px; border:1px solid #1f2937;
+}
+.overlay-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
+.overlay-head .title{ font-size:20px; font-weight:800;}
+.overlay-head .close{ background:#111827; color:#e5e7eb; border:1px solid #334155; padding:6px 10px; border-radius:8px; cursor:pointer;}
+.block{ margin-bottom:12px; }
+.updated{ font-size:12px; color:#94a3b8; }
+
 
 
 </style>
@@ -282,10 +302,28 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
 </div>
 <div class="toast" id="toast"></div>
 
+<!-- 右下にフローティングボタン -->
+<button id="btnOpenSummary" class="fab">📊 進捗</button>
+
+<!-- 全画面オーバーレイ -->
+<div id="summaryOverlay" class="overlay hidden">
+  <div class="overlay-inner">
+    <div class="overlay-head">
+      <div class="title">📊 本日の進捗</div>
+      <button id="btnCloseSummary" class="close">✕</button>
+    </div>
+    <div id="sumTotals" class="block"></div>
+    <div id="sumByOp" class="block"></div>
+    <div id="sumTimeline" class="block"></div>
+    <div id="sumUpdated" class="updated"></div>
+  </div>
+</div>
+
+
 <script>
 // ===== 設定 =====
 const CONFIG = {
-  DEPLOY_URL: "https://script.google.com/macros/s/AKfycbz35XRMmcI_BVsFajYQbTaNdPf0KXspKlnXAFIZXzerH_WTUMznvwgW15GBg5fgJdT3/exec",
+  DEPLOY_URL: "https://script.google.com/macros/s/AKfycbxxbyWz8D5mshce806oADKiog-Dq7cxPVXhDn3HZt4q9pGprb5sky7clZoaToPqZCgK/exec",
   KEY: "KEY_2025_SUIKEN",
   OPERATORS: [
     {key:'松川(将)', label:'松川'},
@@ -397,60 +435,50 @@ function debounceSendGuard() {
 // ===== UI構築 =====
 
 function ymdToday(){
-  const d=new Date();
-  const pad=n=>String(n).padStart(2,'0');
+  const d=new Date(); const pad=n=>String(n).padStart(2,'0');
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 }
-
 async function fetchSummary(date=ymdToday()){
   const url = CONFIG.DEPLOY_URL + (CONFIG.DEPLOY_URL.includes('?')?'&':'?') + toQuery({
-    k: CONFIG.KEY,
-    mode: 'summary',
-    date
+    k: CONFIG.KEY, mode: 'summary', date
   });
   const res = await fetch(url, {cache:'no-store'});
   if(!res.ok) throw new Error('HTTP '+res.status);
   const json = await res.json();
-  if(!json.ok) throw new Error(json.error || 'NG');
+  if(!json.ok) throw new Error(json.error||'NG');
   return json;
 }
-
 function renderSummary(data){
-  $('#summaryCard').classList.remove('hidden');
+  const toResultBadge = r => r==='pass' ? '合格' : (r==='fail'?'不合格':r);
 
-  $('#sumTotals').innerHTML = `
-    <div><b>合格</b>: ${data.totals.pass}　<b>不合格</b>: ${data.totals.fail}　<b>不合格ユニーク</b>: ${data.totals.uniqueFail}</div>
-  `;
+  $('#sumTotals').innerHTML =
+    `<div><b>今日の件数（group_idユニーク）</b>：${data.totals.groups}</div>`;
 
-  const op = (data.by_operator||[]).map(o=>`${o.operator||'-'}：合${o.pass} / 不${o.fail}（ユ${o.uniqueFail}）`).join('　');
-  $('#sumByOp').innerHTML = `<div><b>検査者別</b>：${op || '—'}</div>`;
+  const opHtml = (data.by_operator||[]).map(o=>
+    `<li>${o.operator}：<b>${o.groups}</b>件</li>`
+  ).join('') || '<li>—</li>';
+  $('#sumByOp').innerHTML = `<div><b>検査者別</b></div><ul>${opHtml}</ul>`;
 
-  const md = (data.by_mode||[]).map(m=>`#${m.mode||'-'}：合${m.pass} / 不${m.fail}（ユ${m.uniqueFail}）`).join('　');
-  $('#sumByMode').innerHTML = `<div><b>種別別</b>：${md || '—'}</div>`;
+  const tlHtml = (data.timeline||[]).map(t=>
+    `<li>${t.time}　${t.operator}　${toResultBadge(t.result)}</li>`
+  ).join('') || '<li>—</li>';
+  $('#sumTimeline').innerHTML = `<div><b>時間順の履歴</b></div><ul>${tlHtml}</ul>`;
 
-  const defs = (data.top_defects||[]).map(d=>`${d.part}×${d.detail}：${d.count}`).join('　');
-  $('#sumDefects').innerHTML = `<div><b>上位不良</b>：${defs || '—'}</div>`;
-
-  const t = new Date(data.updatedAt);
-  $('#sumUpdated').textContent = `更新: ${t.toLocaleString()}`;
+  $('#sumUpdated').textContent = `更新: ${new Date(data.updatedAt).toLocaleString()}`;
 }
-
-async function refreshSummary(){
+async function openSummary(){
   try{
     const data = await fetchSummary();
     renderSummary(data);
-    localStorage.setItem('suiken_summary', JSON.stringify({at:Date.now(),data}));
+    $('#summaryOverlay').classList.remove('hidden');
   }catch(e){
-    // オフライン時はキャッシュ表示
-    const c = localStorage.getItem('suiken_summary');
-    if(c){
-      renderSummary(JSON.parse(c).data);
-      toast('オフライン：前回の進捗を表示');
-    }else{
-      toast('進捗を取得できません');
-    }
+    toast('進捗を取得できません');
   }
 }
+function closeSummary(){ $('#summaryOverlay').classList.add('hidden'); }
+document.getElementById('btnOpenSummary').onclick = openSummary;
+document.getElementById('btnCloseSummary').onclick = closeSummary;
+
 
 
 function buildOperators() {
@@ -570,6 +598,38 @@ function makeGroupId() {
   const rnd = Math.random().toString(36).slice(-4).toUpperCase();
   return `G${ts}-${rnd}`;
 }
+
+// どこかで使うID生成
+function newGroupId(){
+  const d=new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  const ymd = `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
+  const hms = `${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+  const rnd = Math.random().toString(36).slice(-4).toUpperCase();
+  return `G${ymd}-${hms}-${rnd}`;
+}
+
+// グローバル state に現在の group_id を保持（必要なときだけセット）
+state.currentGroupId = '';
+
+// 1) 合格 / 単発不合格 / 3・4・2(別箇所/同別複合) を送る直前：
+const gid = newGroupId();
+params.group_id = gid;   // 毎回新規で送る
+
+// 2) Mode2→同箇所 を押した瞬間に開始グループを発行
+btnSame.onclick = ()=> {
+  state.currentGroupId = newGroupId();   // セッション開始
+  // パネル表示 …（既存）
+};
+
+// 2-続) Mode2→同箇所で部位を追加して送るたび：
+params.group_id = state.currentGroupId;  // ずっと同じIDを使う
+params.fail_seq = String(++state.pre2.seq);  // 1,2,3…
+
+// 2-終) 「送信」完了したらリセット：
+state.currentGroupId = '';
+state.pre2.seq = 0;
+
 
 async function send(params) { 
   const url = CONFIG.DEPLOY_URL + (CONFIG.DEPLOY_URL.includes('?') ? '&' : '?') + toQuery(params); 
