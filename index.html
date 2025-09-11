@@ -188,22 +188,6 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
 
 <div class="divider"></div>
 
-<section class="card hidden" id="summaryCard">
-  <div class="section-title">📊 本日の進捗</div>
-  <div id="sumTotals"   style="margin-bottom:8px"></div>
-  <div id="sumByOp"     style="margin-bottom:8px"></div>
-  <div id="sumByMode"   style="margin-bottom:8px"></div>
-  <div id="sumDefects"  style="margin-bottom:4px"></div>
-  <div style="font-size:12px;color:#94a3b8" id="sumUpdated"></div>
-  <div class="row" style="justify-content:flex-end;margin-bottom:8px">
-  <button class="btn" id="btnToggleSummary">📊 進捗</button>
-</div>
-
-</section>
-
-
-<div class="divider"></div>
-
 <!-- 分岐（2:出荷前修理の不合格時） -->
 <section class="card hidden" id="branchCard" aria-label="不合格分岐">
   <div class="section-title">不合格（出荷前修理）</div>
@@ -323,7 +307,7 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
 <script>
 // ===== 設定 =====
 const CONFIG = {
-  DEPLOY_URL: "https://script.google.com/macros/s/AKfycbxxbyWz8D5mshce806oADKiog-Dq7cxPVXhDn3HZt4q9pGprb5sky7clZoaToPqZCgK/exec",
+  DEPLOY_URL: "https://script.google.com/macros/s/AKfycbwRU9pxGq_hbyL_DSVxsmP3EhpO2PsFlmNQNti8pF30HbbfMHCBwRM5eTJw6ziqxY0d/exec",
   KEY: "KEY_2025_SUIKEN",
   OPERATORS: [
     {key:'松川(将)', label:'松川'},
@@ -688,7 +672,7 @@ async function sendPre1() {
     part,
     detail: defect,
     qty: '1',
-    group_id: makeGroupId(),
+    group_id,
     fail_seq: '1'
   };
 
@@ -993,15 +977,6 @@ if (btnPrefillA) {
     const btnSendPre2 = $('#btnSendPre2');
 
 bindLine('#lineChips1', 'pre1');
-
-// 「📊進捗」ボタンで手動表示（任意）
-const btnToggleSummary = document.getElementById('btnToggleSummary');
-if(btnToggleSummary){
-  btnToggleSummary.onclick = () => { refreshSummary(); scrollIntoViewSmooth($('#summaryCard'), 600, 60); };
-}
-// 自動更新（例：15秒おき）
-refreshSummary();
-setInterval(refreshSummary, 15000);
 
 
 // 不合格：modeごとの分岐（スクロール込み）
