@@ -168,6 +168,22 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
 
 <div class="divider"></div>
 
+<section class="card hidden" id="summaryCard">
+  <div class="section-title">📊 本日の進捗</div>
+  <div id="sumTotals"   style="margin-bottom:8px"></div>
+  <div id="sumByOp"     style="margin-bottom:8px"></div>
+  <div id="sumByMode"   style="margin-bottom:8px"></div>
+  <div id="sumDefects"  style="margin-bottom:4px"></div>
+  <div style="font-size:12px;color:#94a3b8" id="sumUpdated"></div>
+  <div class="row" style="justify-content:flex-end;margin-bottom:8px">
+  <button class="btn" id="btnToggleSummary">📊 進捗</button>
+</div>
+
+</section>
+
+
+<div class="divider"></div>
+
 <!-- 分岐（2:出荷前修理の不合格時） -->
 <section class="card hidden" id="branchCard" aria-label="不合格分岐">
   <div class="section-title">不合格（出荷前修理）</div>
@@ -269,7 +285,7 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
 <script>
 // ===== 設定 =====
 const CONFIG = {
-  DEPLOY_URL: "https://script.google.com/macros/s/AKfycbwI-9BfcvdjVyQZ6vqNH1k1O7A-DxTIq6I5iblq4lw5y-tTRie8ymHizsbh0sBBZCO2/exec",
+  DEPLOY_URL: "https://script.google.com/macros/s/AKfycbyiQPddETBTID7XGoBaHHz8Gn0qsNmuOcjsj-ydckEjRXGIqGIpNVIcUrHtAGmfGciL/exec",
   KEY: "KEY_2025_SUIKEN",
   OPERATORS: [
     {key:'松川(将)', label:'松川'},
@@ -379,6 +395,64 @@ function debounceSendGuard() {
 }
 
 // ===== UI構築 =====
+
+function ymdToday(){
+  const d=new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+async function fetchSummary(date=ymdToday()){
+  const url = CONFIG.DEPLOY_URL + (CONFIG.DEPLOY_URL.includes('?')?'&':'?') + toQuery({
+    k: CONFIG.KEY,
+    mode: 'summary',
+    date
+  });
+  const res = await fetch(url, {cache:'no-store'});
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const json = await res.json();
+  if(!json.ok) throw new Error(json.error || 'NG');
+  return json;
+}
+
+function renderSummary(data){
+  $('#summaryCard').classList.remove('hidden');
+
+  $('#sumTotals').innerHTML = `
+    <div><b>合格</b>: ${data.totals.pass}　<b>不合格</b>: ${data.totals.fail}　<b>不合格ユニーク</b>: ${data.totals.uniqueFail}</div>
+  `;
+
+  const op = (data.by_operator||[]).map(o=>`${o.operator||'-'}：合${o.pass} / 不${o.fail}（ユ${o.uniqueFail}）`).join('　');
+  $('#sumByOp').innerHTML = `<div><b>検査者別</b>：${op || '—'}</div>`;
+
+  const md = (data.by_mode||[]).map(m=>`#${m.mode||'-'}：合${m.pass} / 不${m.fail}（ユ${m.uniqueFail}）`).join('　');
+  $('#sumByMode').innerHTML = `<div><b>種別別</b>：${md || '—'}</div>`;
+
+  const defs = (data.top_defects||[]).map(d=>`${d.part}×${d.detail}：${d.count}`).join('　');
+  $('#sumDefects').innerHTML = `<div><b>上位不良</b>：${defs || '—'}</div>`;
+
+  const t = new Date(data.updatedAt);
+  $('#sumUpdated').textContent = `更新: ${t.toLocaleString()}`;
+}
+
+async function refreshSummary(){
+  try{
+    const data = await fetchSummary();
+    renderSummary(data);
+    localStorage.setItem('suiken_summary', JSON.stringify({at:Date.now(),data}));
+  }catch(e){
+    // オフライン時はキャッシュ表示
+    const c = localStorage.getItem('suiken_summary');
+    if(c){
+      renderSummary(JSON.parse(c).data);
+      toast('オフライン：前回の進捗を表示');
+    }else{
+      toast('進捗を取得できません');
+    }
+  }
+}
+
+
 function buildOperators() {
   const bar = $('#operatorBar'); 
   bar.innerHTML = '';
@@ -859,6 +933,16 @@ if (btnPrefillA) {
     const btnSendPre2 = $('#btnSendPre2');
 
 bindLine('#lineChips1', 'pre1');
+
+// 「📊進捗」ボタンで手動表示（任意）
+const btnToggleSummary = document.getElementById('btnToggleSummary');
+if(btnToggleSummary){
+  btnToggleSummary.onclick = () => { refreshSummary(); scrollIntoViewSmooth($('#summaryCard'), 600, 60); };
+}
+// 自動更新（例：15秒おき）
+refreshSummary();
+setInterval(refreshSummary, 15000);
+
 
 // 不合格：modeごとの分岐（スクロール込み）
 // 不合格：modeごとの分岐（スムーススクロール）
