@@ -600,25 +600,6 @@ function newGroupId(){
 // グローバル state に現在の group_id を保持（必要なときだけセット）
 state.currentGroupId = '';
 
-// 1) 合格 / 単発不合格 / 3・4・2(別箇所/同別複合) を送る直前：
-const gid = newGroupId();
-params.group_id = gid;   // 毎回新規で送る
-
-// 2) Mode2→同箇所 を押した瞬間に開始グループを発行
-btnSame.onclick = ()=> {
-  state.currentGroupId = newGroupId();   // セッション開始
-  // パネル表示 …（既存）
-};
-
-// 2-続) Mode2→同箇所で部位を追加して送るたび：
-params.group_id = state.currentGroupId;  // ずっと同じIDを使う
-params.fail_seq = String(++state.pre2.seq);  // 1,2,3…
-
-// 2-終) 「送信」完了したらリセット：
-state.currentGroupId = '';
-state.pre2.seq = 0;
-
-
 async function send(params) { 
   const url = CONFIG.DEPLOY_URL + (CONFIG.DEPLOY_URL.includes('?') ? '&' : '?') + toQuery(params); 
   const res = await fetch(url, {method:'GET', cache:'no-store'}); 
