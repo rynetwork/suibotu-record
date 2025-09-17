@@ -159,6 +159,18 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
 <span class="muted">（検査者 → 種別 → 合否 → 分岐）</span>
 </header>
 
+<!--保留ボタン-->
+<section class="card">
+  <div class="section-title">合否</div>
+  <div class="row">
+    <button class="btn ok" id="btnPass">合格</button>
+    <button class="btn err" id="btnFail">不合格</button>
+    <!-- ★保留ボタン追加（初期は非表示）-->
+    <button class="btn" id="btnHold" style="display:none;">保留</button>
+  </div>
+</section>
+
+
 <!-- 検査者 -->
 <section class="card" aria-label="検査者">
 <div class="section-title">検査者</div>
@@ -502,11 +514,17 @@ function buildModes() {
       localStorage.setItem('mode', state.mode); 
       $$('#modeGrid .btn').forEach(x => x.classList.remove('active')); 
       b.classList.add('active'); 
-      resetFlow(); 
+      resetFlow();
++     // ★ Mode3のときだけ保留ボタンを表示
++     const holdBtn = document.getElementById('btnHold');
++     if (holdBtn) {
++       holdBtn.style.display = (md.key === '3') ? '' : 'none';
++     }
     };
     grid.appendChild(b);
   });
 }
+
 
 function buildParts(gridId) {
   const grid = $(gridId); 
@@ -610,30 +628,35 @@ async function send(params) {
 
 async function sendSimpleRecord(result) {
   if(!state.operator) return toast('検査者を選んでください');
-  if(!state.mode) return toast('検査種別を選んでください');
+  if(!state.mode)     return toast('検査種別を選んでください');
   if(!debounceSendGuard()) return;
 
+  const isHold = (result === 'hold');           // ★ 追加：保留判定
   const group_id = makeGroupId();
+
   const params = {
     k: CONFIG.KEY,
     operator: state.operator,
     mode: state.mode,
-    result,
+    // ★ 保留は fail で送る（見た目の result は 'hold' だが、保存は 'fail'）
+    result: isHold ? 'fail' : result,
     qty: '1',
     group_id,
-    fail_seq: (result === 'pass' ? '0' : '1')
+    // ★ fail_seq：pass=0 / hold=0 / それ以外のfail=1
+    fail_seq: (result === 'pass' || isHold) ? '0' : '1'
   };
 
   try {
     await send(params);
-    toast('記録しました');
-    log(`mode:${state.mode} / ${result} / ${group_id}`);
+    toast(isHold ? '保留を記録しました' : '記録しました');  // ★ メッセージ分岐
+    log(`mode:${state.mode} / ${result}${isHold ? '(fail0)' : ''} / ${group_id}`);
     resetFlow();
   } catch(e) {
     toast('送信失敗'); 
     log('送信失敗: ' + e.message);
   }
 }
+
 
 async function sendPre1() {
   if(!state.operator || !state.mode) return toast('検査者/種別を選択');
@@ -960,6 +983,20 @@ if (btnPrefillA) {
     const btnSendPre1 = $('#btnSendPre1');
     const btnAddLoc = $('#btnAddLoc');
     const btnSendPre2 = $('#btnSendPre2');
+
+    // ★ 保留ボタン（Mode3専用）
+    const btnHold = $('#btnHold');
+    if (btnHold) {
+      btnHold.onclick = () => {
+        if (!state.operator) return toast('検査者を選択');
+        if (!state.mode)     return toast('検査種別を選択');
+        if (state.mode !== '3') return toast('保留はMode3のみ');
+
+        // fail_seq = 0 で記録（result は fail 扱い）
+        sendSimpleRecord('hold');
+      };
+    }
+
 
 bindLine('#lineChips1', 'pre1');
 
