@@ -148,6 +148,15 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
 .block{ margin-bottom:12px; }
 .updated{ font-size:12px; color:#94a3b8; }
 
+/* 押下中の一瞬だけ付くクラス（選択の .active とは別物） */
+.btn.pressed, .chip.pressed {
+  transform: translateY(1px);
+  filter: brightness(1.15);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.08);
+  transition: filter .06s, transform .06s;
+}
+
+
 
 
 </style>
@@ -306,6 +315,38 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
 
 
 <script>
+
+function installPressFeedback() {
+  // 押した瞬間
+  document.addEventListener('pointerdown', (e) => {
+    const el = e.target.closest('.btn, .chip');
+    if (!el) return;
+    el.classList.add('pressed');
+    try { navigator.vibrate?.(10); } catch (_) {}
+  }, { passive: true });
+
+  // 押し終わり／キャンセル時に解除
+  const clear = () => {
+    document.querySelectorAll('.pressed').forEach(el => el.classList.remove('pressed'));
+  };
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(type => {
+    document.addEventListener(type, clear, { passive: true });
+  });
+
+  // キーボード操作（スペース/Enter）でも反応
+  document.addEventListener('keydown', (e) => {
+    if (!(e.key === ' ' || e.key === 'Enter')) return;
+    const el = e.target.closest('.btn, .chip');
+    if (el) {
+      el.classList.add('pressed');
+      try { navigator.vibrate?.(8); } catch (_) {}
+    }
+  });
+  document.addEventListener('keyup', () => {
+    document.querySelectorAll('.pressed').forEach(el => el.classList.remove('pressed'));
+  });
+}
+
 // ===== 設定 =====
 const CONFIG = {
   DEPLOY_URL: "https://script.google.com/macros/s/AKfycbxe21Rix-rCA5HriX7gyGQp8SPmNw8b1oJ7QLctUpMnnOjJUSerpHAJRIwiPKHvUwal/exec",
@@ -616,35 +657,43 @@ async function send(params) {
 }
 
 async function sendSimpleRecord(result) {
-  if(!state.operator) return toast('検査者を選んでください');
-  if(!state.mode)     return toast('検査種別を選んでください');
-  if(!debounceSendGuard()) return;
+  if (!state.operator) return toast('検査者を選んでください');
+  if (!state.mode)     return toast('検査種別を選んでください');
+  if (!debounceSendGuard()) return;
 
-  const isHold = (result === 'hold');           // ★ 追加：保留判定
+  const isHold   = (result === 'hold');     // 保留=fail_seq 0
   const group_id = makeGroupId();
 
   const params = {
     k: CONFIG.KEY,
     operator: state.operator,
     mode: state.mode,
-    // ★ 保留は fail で送る（見た目の result は 'hold' だが、保存は 'fail'）
-    result: isHold ? 'fail' : result,
+    result: isHold ? 'fail' : result,       // 保留は fail で送る
+    fail_seq: (result === 'pass' || isHold) ? '0' : '1',
     qty: '1',
-    group_id,
-    // ★ fail_seq：pass=0 / hold=0 / それ以外のfail=1
-    fail_seq: (result === 'pass' || isHold) ? '0' : '1'
+    group_id
   };
 
+  // --- 楽観的UI：先にフィードバック＆UIリセット ---
+  const optimisticMsg = isHold ? '保留を記録しました' : '記録しました';
+  toast(optimisticMsg);                      // 先に出す（体感を速く）
+  resetFlow();                               // UIもすぐ戻す
+
+  // --- 通信は裏で実行。失敗したら知らせる ---
   try {
-    await send(params);
-    toast(isHold ? '保留を記録しました' : '記録しました');  // ★ メッセージ分岐
-    log(`mode:${state.mode} / ${result}${isHold ? '(fail0)' : ''} / ${group_id}`);
-    resetFlow();
-  } catch(e) {
-    toast('送信失敗'); 
-    log('送信失敗: ' + e.message);
+    const res = await send(params);          // 既存の送信関数
+    if (!res || res.ok !== true) {
+      throw new Error(res && res.error ? res.error : 'NG');
+    }
+    // 成功時は何もしない（すでに「記録しました」を表示済み）
+  } catch (e) {
+    // 送信失敗を後追いで通知（必要なら再送キュー化も可）
+    toast('送信失敗：通信環境を確認し再送してください');
+    log('送信失敗: ' + (e.message || e));
+    // ここでローカルに保留→後で自動再送したいなら enqueueForRetry(params) を呼ぶ
   }
 }
+
 
 
 async function sendPre1() {
@@ -929,10 +978,7 @@ function showAndScroll(containerEl, targetEl = null, offset = 120, duration = 60
 // ===== 初期化 =====
 function init() {
 
-// 合格・不合格の押下エフェクト
-wirePressFeedback('#btnPass');
-wirePressFeedback('#btnFail');
-
+  installPressFeedback(); 
 
   try {
     buildOperators();
