@@ -648,52 +648,59 @@ function newGroupId(){
 // グローバル state に現在の group_id を保持（必要なときだけセット）
 state.currentGroupId = '';
 
-async function send(params) { 
-  const url = CONFIG.DEPLOY_URL + (CONFIG.DEPLOY_URL.includes('?') ? '&' : '?') + toQuery(params); 
-  const res = await fetch(url, {method:'GET', cache:'no-store'}); 
-  if(!res.ok) throw new Error('HTTP ' + res.status); 
-  const json = await res.json().catch(() => ({ok:false})); 
-  if(!json.ok) throw new Error('NG'); 
+// 共通送信ヘルパー（必ず {ok:true} などのJSONを返す）
+async function send(p) {
+  const url = CONFIG.DEPLOY_URL + (CONFIG.DEPLOY_URL.includes('?') ? '&' : '?') + toQuery(p);
+  const r = await fetch(url, { method: 'GET', cache: 'no-store' });
+
+  // 200系でないときは失敗
+  if (!r.ok) return { ok: false, error: 'HTTP ' + r.status };
+
+  // JSON を確実に返す（テキスト→JSON フォールバック）
+  try {
+    const j = await r.json();
+    return j && typeof j === 'object' ? j : { ok: false, error: 'bad json' };
+  } catch {
+    const t = await r.text();
+    try { return JSON.parse(t); }
+    catch { return { ok: false, error: 'parse error: ' + t.slice(0,120) }; }
+  }
 }
+
 
 async function sendSimpleRecord(result) {
   if (!state.operator) return toast('検査者を選んでください');
   if (!state.mode)     return toast('検査種別を選んでください');
   if (!debounceSendGuard()) return;
 
-  const isHold   = (result === 'hold');     // 保留=fail_seq 0
+  const isHold   = (result === 'hold');
   const group_id = makeGroupId();
 
   const params = {
     k: CONFIG.KEY,
     operator: state.operator,
     mode: state.mode,
-    result: isHold ? 'fail' : result,       // 保留は fail で送る
+    result: isHold ? 'fail' : result,
     fail_seq: (result === 'pass' || isHold) ? '0' : '1',
     qty: '1',
     group_id
   };
 
-  // --- 楽観的UI：先にフィードバック＆UIリセット ---
-  const optimisticMsg = isHold ? '保留を記録しました' : '記録しました';
-  toast(optimisticMsg);                      // 先に出す（体感を速く）
-  resetFlow();                               // UIもすぐ戻す
+  // 楽観UI：先に完了を見せる
+  toast(isHold ? '保留を記録しました' : '記録しました');
+  resetFlow();
 
-  // --- 通信は裏で実行。失敗したら知らせる ---
+  // 裏で送って、失敗時のみ知らせる
   try {
-    const res = await send(params);          // 既存の送信関数
-    if (!res || res.ok !== true) {
-      throw new Error(res && res.error ? res.error : 'NG');
-    }
-    // 成功時は何もしない（すでに「記録しました」を表示済み）
+    const res = await send(params);   // ← 上で直した send()
+    const ok = res && (res.ok === true || res.ok === 'true');
+    if (!ok) throw new Error(res && res.error ? res.error : 'NG');
+    // 成功時は何もしない（既に「記録しました」を出している）
   } catch (e) {
-    // 送信失敗を後追いで通知（必要なら再送キュー化も可）
     toast('送信失敗：通信環境を確認し再送してください');
     log('送信失敗: ' + (e.message || e));
-    // ここでローカルに保留→後で自動再送したいなら enqueueForRetry(params) を呼ぶ
   }
 }
-
 
 
 async function sendPre1() {
