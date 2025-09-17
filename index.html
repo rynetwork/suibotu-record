@@ -159,18 +159,6 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
 <span class="muted">（検査者 → 種別 → 合否 → 分岐）</span>
 </header>
 
-<!--保留ボタン-->
-<section class="card">
-  <div class="section-title">合否</div>
-  <div class="row">
-    <button class="btn ok" id="btnPass">合格</button>
-    <button class="btn err" id="btnFail">不合格</button>
-    <!-- ★保留ボタン追加（初期は非表示）-->
-    <button class="btn" id="btnHold" style="display:none;">保留</button>
-  </div>
-</section>
-
-
 <!-- 検査者 -->
 <section class="card" aria-label="検査者">
 <div class="section-title">検査者</div>
@@ -188,14 +176,15 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
 
 <div class="divider"></div>
 
-<!-- 合否 -->
-<section class="card" aria-label="合否">
+<!--保留ボタン-->
+<section class="card">
   <div class="section-title">合否</div>
   <div class="row">
     <button class="btn ok" id="btnPass">合格</button>
     <button class="btn err" id="btnFail">不合格</button>
+    <!-- ★保留ボタン追加（初期は非表示）-->
+    <button class="btn" id="btnHold" style="display:none;">保留</button>
   </div>
-  <div class="muted" style="margin-top:6px">※ 合格は即記録（2秒の連打ガード）。</div>
 </section>
 
 <div class="divider"></div>
