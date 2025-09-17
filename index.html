@@ -475,7 +475,11 @@ async function fetchSummary(date=ymdToday()){
   return json;
 }
 function renderSummary(data){
-  const badge = r => r==='pass' ? '合格' : (r==='fail'?'不合格':r);
+  const badge = r => r === 'pass' ? '合格'
+               : r === 'fail'  ? '不合格'
+               : r === 'hold'  ? '保留'
+               : r;
+
 
   // 合計（group_idユニーク）
   $('#sumTotals').innerHTML =
@@ -673,34 +677,37 @@ async function sendSimpleRecord(result) {
   if (!state.mode)     return toast('検査種別を選んでください');
   if (!debounceSendGuard()) return;
 
-  const isHold   = (result === 'hold');
+  const isHold   = (result === 'hold');      // ★ 保留判定
   const group_id = makeGroupId();
 
   const params = {
     k: CONFIG.KEY,
     operator: state.operator,
     mode: state.mode,
-    result: isHold ? 'fail' : result,
-    fail_seq: (result === 'pass' || isHold) ? '0' : '1',
+    // ★ ここを "fail" にマップしない。渡ってきた値そのまま保存
+    //    pass / fail / hold の3値を素直に送る
+    result: result,
     qty: '1',
-    group_id
+    group_id,
+    // ★ fail_seq: pass=0 / hold=0 / fail=1
+    fail_seq: (result === 'pass' || isHold) ? '0' : '1'
   };
 
-  // 楽観UI：先に完了を見せる
+  // 楽観UI：先に成功トーストを出す
   toast(isHold ? '保留を記録しました' : '記録しました');
   resetFlow();
 
-  // 裏で送って、失敗時のみ知らせる
   try {
-    const res = await send(params);   // ← 上で直した send()
+    const res = await send(params); // ← 共通送信ヘルパー（JSONを返すようにしておく）
     const ok = res && (res.ok === true || res.ok === 'true');
     if (!ok) throw new Error(res && res.error ? res.error : 'NG');
-    // 成功時は何もしない（既に「記録しました」を出している）
+    // 成功時は何もしない（すでにトースト表示済み）
   } catch (e) {
     toast('送信失敗：通信環境を確認し再送してください');
     log('送信失敗: ' + (e.message || e));
   }
 }
+
 
 
 async function sendPre1() {
