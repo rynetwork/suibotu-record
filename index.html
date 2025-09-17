@@ -515,11 +515,11 @@ function buildModes() {
       $$('#modeGrid .btn').forEach(x => x.classList.remove('active')); 
       b.classList.add('active'); 
       resetFlow();
-+     // ★ Mode3のときだけ保留ボタンを表示
-+     const holdBtn = document.getElementById('btnHold');
-+     if (holdBtn) {
-+       holdBtn.style.display = (md.key === '3') ? '' : 'none';
-+     }
+     // ★ Mode3のときだけ保留ボタンを表示
+     const holdBtn = document.getElementById('btnHold');
+     if (holdBtn) {
+       holdBtn.style.display = (md.key === '3') ? '' : 'none';
+     }
     };
     grid.appendChild(b);
   });
