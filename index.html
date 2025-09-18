@@ -549,11 +549,11 @@ function buildModes() {
       $$('#modeGrid .btn').forEach(x => x.classList.remove('active')); 
       b.classList.add('active'); 
       resetFlow();
-     // ★ Mode3のときだけ保留ボタンを表示
-     const holdBtn = document.getElementById('btnHold');
-     if (holdBtn) {
-       holdBtn.style.display = (md.key === '3') ? '' : 'none';
-     }
+    // ★ Mode2/Mode3 のときだけ保留を表示
+  const holdBtn = document.getElementById('btnHold');
+    if (holdBtn) {
+    holdBtn.style.display = (md.key === '2' || md.key === '3') ? '' : 'none';
+      }
     };
     grid.appendChild(b);
   });
@@ -1034,16 +1034,21 @@ if (btnPrefillA) {
 
     // ★ 保留ボタン（Mode3専用）
     const btnHold = $('#btnHold');
-    if (btnHold) {
-      btnHold.onclick = () => {
-        if (!state.operator) return toast('検査者を選択');
-        if (!state.mode)     return toast('検査種別を選択');
-        if (state.mode !== '3') return toast('保留はMode3のみ');
+if (btnHold) {
+  btnHold.onclick = () => {
+    if (!state.operator) return toast('検査者を選択');
+    if (!state.mode)     return toast('検査種別を選択');
+    if (state.mode !== '2' && state.mode !== '3') return toast('保留はMode2/3のみ');
 
-        // fail_seq = 0 で記録（result は fail 扱い）
-        sendSimpleRecord('hold');
-      };
-    }
+   // （任意）Mode2で分岐UIを開いていた場合は畳んでおく
+   document.getElementById('branchCard')?.classList.add('hidden');
+   document.getElementById('preRepairSameCard')?.classList.add('hidden');
+
+    // 即送信（result=hold / fail_seq=0 は sendSimpleRecord 側で処理）
+    sendSimpleRecord('hold');
+  };
+}
+
 
 
 bindLine('#lineChips1', 'pre1');
