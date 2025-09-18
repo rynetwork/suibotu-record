@@ -821,7 +821,10 @@ async function sendPre2() {
 　if(!state.pre2.inqNo){  return toast('問い合わせNo.を入力してください');}
   if(state.pre2.locs.length === 0) return toast('箇所を1つ以上追加してください');
 
-  try {
+  toast('記録しました');
+   resetFlow();
+
+   try {
     const group_id = makeGroupId();
     for(const [idx, loc] of state.pre2.locs.entries()) {
       const params = {
@@ -843,9 +846,9 @@ async function sendPre2() {
       };
       await send(params);
     }
-    toast('記録しました');
+ 
     log(`2同箇所 不合格 ${state.pre2.locs.length}件 / ${group_id}`);
-    resetFlow();
+
   } catch(e) {
     toast('送信失敗'); 
     log('送信失敗: ' + e.message);
