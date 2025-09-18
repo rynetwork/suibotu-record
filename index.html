@@ -256,6 +256,16 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
 <div class="card" style="margin:12px 0; padding:24px; text-align:center; background:#222; border:2px solid #4ade80;">
   <div class="section-title" style="font-size:24px; margin-bottom:12px; color:#4ade80;">問い合わせNo.（必須）</div>
 
+  <!-- 検査回数入力 -->
+<div class="card" style="margin:12px 0; padding:24px; text-align:center; background:#222; border:2px solid #60a5fa;">
+  <div class="section-title" style="font-size:20px; margin-bottom:8px; color:#60a5fa;">検査回数</div>
+  <input id="inspectionCount" type="number" min="1"
+         placeholder="例: 1"
+         style="font-size:24px; padding:10px 16px; width:90%; max-width:200px;
+                border-radius:8px; border:none; text-align:center;
+                background:#0b1222; color:#fff;" />
+</div>
+
   <!-- ここから置き換え -->
   <div class="inq-wrap">
     <button type="button" id="btnPrefillA" class="a-btn">A</button>
@@ -349,7 +359,7 @@ function installPressFeedback() {
 
 // ===== 設定 =====
 const CONFIG = {
-  DEPLOY_URL: "https://script.google.com/macros/s/AKfycbxe21Rix-rCA5HriX7gyGQp8SPmNw8b1oJ7QLctUpMnnOjJUSerpHAJRIwiPKHvUwal/exec",
+  DEPLOY_URL: "https://script.google.com/macros/s/AKfycbzmukOt-YJjzlbZhT1SXsSgwHIQ-haEQ-O2EGd38ac0PjSnwB0tIHFu6CnQ_o07fYYN/exec",
   KEY: "KEY_2025_SUIKEN",
   OPERATORS: [
     {key:'松川(将)', label:'松川'},
@@ -434,7 +444,7 @@ const state = {
   result: null,
   branch: null,
   pre1: { mfNo:'', prodName:'', line:'', position:'', side:'', part:'', defect:'' },
-  pre2: { inqNo:'', position:'', side:'', part:'', defect:'', locs:[] }
+  pre2: { inqNo:'', position:'', side:'', part:'', defect:'', locs:[] ,inspection_count:'' }
 };
 
 function toast(msg) { 
@@ -825,6 +835,7 @@ async function sendPre2() {
         side: loc.side,
         part: loc.part,
         detail: loc.defect,
+        inspection_count: state.pre2.inspection_count || '',  // ★追加
         qty: '1',
         group_id,
         fail_seq: String(idx + 1)
@@ -905,7 +916,8 @@ async function sendBranch() {
     reason: state.branch,
     qty: '1',
     group_id,
-    fail_seq: '1'
+    fail_seq: '1',
+    inspection_count: state.pre2.inspection_count || ''  // ★追加
   };
 
   try {
@@ -1005,6 +1017,13 @@ function init() {
     const mfNoInput = $('#mfNo');
     const prodNameInput = $('#prodName');
     const inqNoInput = $('#inqNo');
+    const inspectionCountInput = $('#inspectionCount');
+if (inspectionCountInput) {
+  inspectionCountInput.addEventListener('input', e => {
+    state.pre2.inspection_count = e.target.value.trim();
+  });
+}
+
 
     const btnPrefillA = document.getElementById('btnPrefillA');
 if (btnPrefillA) {
