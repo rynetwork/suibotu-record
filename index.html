@@ -185,6 +185,17 @@ input[type="text"], input[type="number"], input[type="search"]{background:#0b122
 
 <div class="divider"></div>
 
+<!-- Mode1 のみ表示するサブ選択 -->
+<section class="card hidden" id="mode1SubCard" aria-label="Mode1サブ選択">
+  <div class="section-title">サブ選択（Mode1のみ）</div>
+  <div class="row" id="mode1SubBar">
+    <button class="chip" id="subPP"      data-value="PP">PPサンプル</button>
+    <button class="chip" id="subAccept"  data-value="ACCEPT">受け入れ検品</button>
+  </div>
+</section>
+
+<div class="divider"></div>
+
 <!--保留ボタン-->
 <section class="card">
   <div class="section-title">合否</div>
@@ -360,7 +371,7 @@ function installPressFeedback() {
 
 // ===== 設定 =====
 const CONFIG = {
-  DEPLOY_URL: "https://script.google.com/macros/s/AKfycbzmukOt-YJjzlbZhT1SXsSgwHIQ-haEQ-O2EGd38ac0PjSnwB0tIHFu6CnQ_o07fYYN/exec",
+  DEPLOY_URL: "https://script.google.com/macros/s/AKfycbwUmMXYN5cBLAFRiXQ37DXY0ZdWbwjFBKb9krYj2ZM0aqgSeARlxa6MMpBqHLTravuM/exec",
   KEY: "KEY_2025_SUIKEN",
   OPERATORS: [
     {key:'松川(将)', label:'松川'},
@@ -444,6 +455,7 @@ const state = {
   lastSentAt: 0,
   result: null,
   branch: null,
+  mode1: { subtype: '' },   // ★追加
   pre1: { mfNo:'', prodName:'', line:'', position:'', side:'', part:'', defect:'' },
   pre2: { inqNo:'', position:'', side:'', part:'', defect:'', locs:[] ,inspection_count:'' }
 };
@@ -560,6 +572,20 @@ function buildModes() {
       $$('#modeGrid .btn').forEach(x => x.classList.remove('active')); 
       b.classList.add('active'); 
       resetFlow();
+      // ★ Mode1 のときだけサブ選択UIを表示
+const subCard = document.getElementById('mode1SubCard');
+if (subCard) {
+  if (md.key === '1') {
+    subCard.classList.remove('hidden');
+    // 既に選ばれている subtype を見た目に反映
+    document.querySelectorAll('#mode1SubBar .chip').forEach(ch => {
+      ch.classList.toggle('active', ch.dataset.value === (state.mode1?.subtype || ''));
+    });
+  } else {
+    subCard.classList.add('hidden');
+  }
+}
+
     // ★ Mode2/Mode3 のときだけ保留を表示
   const holdBtn = document.getElementById('btnHold');
     if (holdBtn) {
@@ -698,7 +724,8 @@ async function sendSimpleRecord(result) {
     result: result,                                   // ★そのまま送る（failに変換しない）
     fail_seq: (result === 'pass' || isHold) ? '0' : '1', // ★hold=0 / pass=0 / fail=1
     qty: '1',
-    group_id
+    group_id,
+    subtype: (state.mode === '1' ? (state.mode1?.subtype || '') : '')  // ★追加
   };
 
   // デバッグログ（暫定）：送る直前の値を確認
@@ -743,7 +770,8 @@ async function sendPre1() {
     detail: defect,
     qty: '1',
     group_id,
-    fail_seq: '1'
+    fail_seq: '1',
+    subtype: (state.mode === '1' ? (state.mode1?.subtype || '') : '')  // ★追加
   };
 
   try {
@@ -1027,6 +1055,21 @@ if (inspectionCountInput) {
     state.pre2.inspection_count = e.target.value.trim();
   });
 }
+
+// ★ Mode1 サブ選択（PP / 受け入れ検品）
+const subPP = document.getElementById('subPP');
+const subAccept = document.getElementById('subAccept');
+[subPP, subAccept].forEach(btn=>{
+  if(!btn) return;
+  btn.onclick = () => {
+    const val = btn.dataset.value;             // "PP" or "ACCEPT"
+    state.mode1.subtype = (state.mode1.subtype === val) ? '' : val; // 2回押しで解除
+    // 見た目更新
+    document.querySelectorAll('#mode1SubBar .chip').forEach(ch => {
+      ch.classList.toggle('active', ch.dataset.value === state.mode1.subtype);
+    });
+  };
+});
 
 
     const btnPrefillA = document.getElementById('btnPrefillA');
