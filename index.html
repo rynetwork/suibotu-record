@@ -844,47 +844,48 @@ function updateSendPre2Button() {
 }
 
 async function sendPre2() {
-  if(!state.operator || !state.mode) return toast('検査者/種別を選択');
-  if(!debounceSendGuard()) return;
-　if(!state.pre2.inqNo){  return toast('問い合わせNo.を入力してください');}
-  if(state.pre2.locs.length === 0) return toast('箇所を1つ以上追加してください');
+  if (!state.operator || !state.mode) return toast('検査者/種別を選択');
+  if (!debounceSendGuard()) return;
+  if (!state.pre2.inqNo) return toast('問い合わせNo.を入力してください');
+  if (state.pre2.locs.length === 0) return toast('箇所を1つ以上追加してください');
 
-  // ★ ここで“退避”してから送信する（resetで消えないように）
+  // ★ 送信前にスナップショット退避（resetFlowで消えないように）
   const group_id = makeGroupId();
-  const locs = [...state.pre2.locs];
+  const locs = [...state.pre2.locs];            // 配列コピー
   const inqNo = state.pre2.inqNo;
   const insp  = state.pre2.inspection_count || '';
 
   try {
     for (const [idx, loc] of locs.entries()) {
-       const params = {
-         k: CONFIG.KEY,
-         operator: state.operator,
-         mode: state.mode,
-         result: 'fail',
-         reason: 'same',
+      const params = {
+        k: CONFIG.KEY,
+        operator: state.operator,
+        mode: state.mode,
+        result: 'fail',
+        reason: 'same',
         inquiry_no: inqNo,
-         index: String(idx + 1),
-         position: loc.position,
-         side: loc.side,
-         part: loc.part,
-         detail: loc.defect,
+        index: String(idx + 1),
+        position: loc.position,
+        side: loc.side,
+        part: loc.part,
+        detail: loc.defect,
         inspection_count: insp,
-         qty: '1',
-         group_id,
-         fail_seq: String(idx + 1)
-       };
-       await send(params);
-     }
+        qty: '1',
+        group_id,
+        fail_seq: String(idx + 1)
+      };
+      await send(params);
+    }
 
     log(`2同箇所 不合格 ${locs.length}件 / ${group_id}`);
     toast('記録しました');
-    resetFlow(); // ★送信成功後にリセット
-   } catch(e) {
-     toast('送信失敗'); 
-     log('送信失敗: ' + e.message);
-   }
- }
+    resetFlow();                       // ★ 成功後にリセット
+  } catch (e) {
+    toast('送信失敗');
+    log('送信失敗: ' + e.message);
+  }
+}
+
 
 // ===== フロー制御 =====
 function resetFlow() {
