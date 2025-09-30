@@ -849,9 +849,11 @@ async function sendPre2() {
   if (!state.pre2.inqNo) return toast('問い合わせNo.を入力してください');
   if (state.pre2.locs.length === 0) return toast('箇所を1つ以上追加してください');
 
-  // ★ 送信前にスナップショット退避（resetFlowで消えないように）
+  // ★ 楽観トースト（ここで即表示）
+  toast('記録しました');
+
   const group_id = makeGroupId();
-  const locs = [...state.pre2.locs];            // 配列コピー
+  const locs = [...state.pre2.locs];
   const inqNo = state.pre2.inqNo;
   const insp  = state.pre2.inspection_count || '';
 
@@ -878,13 +880,13 @@ async function sendPre2() {
     }
 
     log(`2同箇所 不合格 ${locs.length}件 / ${group_id}`);
-    toast('記録しました');
-    resetFlow();                       // ★ 成功後にリセット
+    resetFlow(); // 成功時はリセット
   } catch (e) {
-    toast('送信失敗');
+    toast('送信失敗'); 
     log('送信失敗: ' + e.message);
   }
 }
+
 
 
 // ===== フロー制御 =====
