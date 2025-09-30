@@ -849,39 +849,42 @@ async function sendPre2() {
 　if(!state.pre2.inqNo){  return toast('問い合わせNo.を入力してください');}
   if(state.pre2.locs.length === 0) return toast('箇所を1つ以上追加してください');
 
-  toast('記録しました');
-   resetFlow();
+  // ★ ここで“退避”してから送信する（resetで消えないように）
+  const group_id = makeGroupId();
+  const locs = [...state.pre2.locs];
+  const inqNo = state.pre2.inqNo;
+  const insp  = state.pre2.inspection_count || '';
 
-   try {
-    const group_id = makeGroupId();
-    for(const [idx, loc] of state.pre2.locs.entries()) {
-      const params = {
-        k: CONFIG.KEY,
-        operator: state.operator,
-        mode: state.mode,
-        result: 'fail',
-        reason: 'same',
-        inquiry_no: state.pre2.inqNo,
-        index: String(idx + 1),
-        position: loc.position,
-        side: loc.side,
-        part: loc.part,
-        detail: loc.defect,
-        inspection_count: state.pre2.inspection_count || '',  // ★追加
-        qty: '1',
-        group_id,
-        fail_seq: String(idx + 1)
-      };
-      await send(params);
-    }
- 
-    log(`2同箇所 不合格 ${state.pre2.locs.length}件 / ${group_id}`);
+  try {
+    for (const [idx, loc] of locs.entries()) {
+       const params = {
+         k: CONFIG.KEY,
+         operator: state.operator,
+         mode: state.mode,
+         result: 'fail',
+         reason: 'same',
+        inquiry_no: inqNo,
+         index: String(idx + 1),
+         position: loc.position,
+         side: loc.side,
+         part: loc.part,
+         detail: loc.defect,
+        inspection_count: insp,
+         qty: '1',
+         group_id,
+         fail_seq: String(idx + 1)
+       };
+       await send(params);
+     }
 
-  } catch(e) {
-    toast('送信失敗'); 
-    log('送信失敗: ' + e.message);
-  }
-}
+    log(`2同箇所 不合格 ${locs.length}件 / ${group_id}`);
+    toast('記録しました');
+    resetFlow(); // ★送信成功後にリセット
+   } catch(e) {
+     toast('送信失敗'); 
+     log('送信失敗: ' + e.message);
+   }
+ }
 
 // ===== フロー制御 =====
 function resetFlow() {
